@@ -642,7 +642,7 @@ const HOMEK={dmg:1.25,spd:1.15,def:.85};
 function mkFighter(u,idx,pos,face,foe){
   let T=TYPES[u.t],skin=u.t,shade=false;
   if(T.mimic&&foe){T={...TYPES[foe.t],name:'Тень: '+TYPES[foe.t].name,leader:0,side:u.side};skin=foe.t;shade=true}
-  const f={u,T,skin,shade,seq:[],prevA:false,prevDir:null,superArm:0,slowT:0,home:!!(D0ter&&T.home===D0ter),poisonT:0,poisonDps:0,poisonSrc:null,dive:null,breathMul:1,idx,side:u.side,col:SIDES[u.side].col,dark:SIDES[u.side].dark,ground:T.mv[0]==='ground',
+  const f={u,T,skin,shade,seq:[],prevA:false,prevB:false,prevDir:null,prevV:null,turbo:0,superArm:0,slowT:0,home:!!(D0ter&&T.home===D0ter),poisonT:0,poisonDps:0,poisonSrc:null,dive:null,breathMul:1,idx,side:u.side,col:SIDES[u.side].col,dark:SIDES[u.side].dark,ground:T.mv[0]==='ground',
     x:pos.x,y:pos.y,face,r:T.r,spd:T.spd*lvlK(u).spd,hp:u.hp,max:maxHp(u),dmgK:lvlK(u).dmg,cdK:lvlK(u).cd,lvl:u.lvl||1,hasteT:0,shieldT:0,powerT:0,
     cd:[0,0],vx:0,vy:0,dashT:0,dvx:0,dvy:0,dashDmg:0,dashHit:false,blockT:0,stealthT:0,healT:0,healRate:0,rootT:0,breathT:0,breathAb:null,flash:0,acc:0,dead:false,bob:Math.random()*6,portT:0,zone:null,walk:0,moving:false,anim:Math.random()*3,atkT:0,atkDur:.25};
   if(f.home){f.dmgK*=HOMEK.dmg;f.spd*=HOMEK.spd}
@@ -771,9 +771,9 @@ function use(f,i){
   const ab=f.T.ab[i];
   if(f.cd[i]>0||f.dead||f.dashT>0)return;
   f.cd[i]=ab.cd*f.cdK;if(ab.k!=='stealth')f.stealthT=0;
-  // пасхалка: ←→←→ + атака — удар в 50 раз сильнее (в правилах нарочно не описана)
+  // пасхалка: ←→←→ + любой удар — в 20 раз сильнее (в правилах нарочно не описана)
   let mul=1;
-  if(i===0&&f.superArm>0){mul=50;f.superArm=0;D.shake=16;snd(70,.5,'sawtooth',.09,.4);
+  if(f.superArm>0&&(ab.dmg||ab.dps)){mul=20;f.superArm=0;D.shake=16;snd(70,.5,'sawtooth',.09,.4);
     D.fx.push({k:'ring',x:f.x,y:f.y,r:f.r*4,t:0,dur:.4,col:'#ffe04a'})}
   if(!['block','heal','stealth','blink'].includes(ab.k)){f.atkDur=ab.k==='breath'?ab.dur:ab.k==='dash'?Math.max(.25,ab.dist/760):.25;f.atkT=f.atkDur}
   const a=f.face,c=Math.cos(a),s=Math.sin(a),e=enemyOf(f);
@@ -791,7 +791,7 @@ function use(f,i){
         D.proj.push({x:f.x+Math.cos(aa)*(f.r+ab.r+2),y:f.y+Math.sin(aa)*(f.r+ab.r+2),vx:Math.cos(aa)*ab.spd,vy:Math.sin(aa)*ab.spd,r:ab.r*(mul>1?1.8:1),dmg:ab.dmg*mul,poison:ab.poison,pdps:ab.pdps,slow:ab.slow,drain:ab.drain,root:ab.root,aoe:ab.aoe,
           owner:f,life:ab.life,col:ab.col,homing:ab.homing||0,pierce:ab.pierce,knock:ab.knock||60,arrow:ab.arrow,rock:ab.rock,fx:ab.fx,done:false})}
       snd(ab.rock?120:ab.arrow?700:500,.09,ab.homing?'sine':'triangle',.045,ab.rock?.6:1.6);break;}
-    case 'dash':{const dir=ab.back?-1:1,sp=760;f.dashT=ab.dist/sp;f.dvx=c*sp*dir;f.dvy=s*sp*dir;f.dashDmg=ab.dmg;f.dashHit=false;snd(300,.15,'sawtooth',.04,2);break;}
+    case 'dash':{const dir=ab.back?-1:1,sp=760;f.dashT=ab.dist/sp;f.dvx=c*sp*dir;f.dvy=s*sp*dir;f.dashDmg=ab.dmg*mul;f.dashHit=false;snd(300,.15,'sawtooth',.04,2);break;}
     case 'block':f.blockT=ab.dur;snd(800,.12,'triangle',.04,1.3);break;
     case 'heal':f.healT=ab.dur;f.healRate=ab.amt*f.dmgK/ab.dur;snd(660,.3,'sine',.05,1.5);break;
     case 'wave':
@@ -809,19 +809,19 @@ function use(f,i){
       break;
     case 'gust':
       D.fx.push({k:'cone',f,a,range:ab.range+f.r,arc:ab.arc,t:0,dur:.3,col:'#cfe8ff'});snd(200,.3,'sine',.05,.4);
-      if(inCone(f,e,ab.range,ab.arc))hit(e,ab.dmg,f,{knock:ab.knock,ang:a});
+      if(inCone(f,e,ab.range,ab.arc))hit(e,ab.dmg*mul,f,{knock:ab.knock,ang:a});
       for(const p of D.proj)if(p.owner!==f&&Math.hypot(p.x-f.x,p.y-f.y)<ab.range+f.r+20&&ad(Math.atan2(p.y-f.y,p.x-f.x),a)<ab.arc/2+.2){p.done=true;burst(p.x,p.y,'#cfe8ff',5,100)}
       break;
     case 'breath':f.breathT=ab.dur;f.breathAb=ab;f.breathMul=mul;snd(90,ab.dur,'sawtooth',.03,1.8);break;
     case 'trap':{
       const x=f.x-c*(f.r+14),y=f.y-s*(f.r+14);
-      D.traps.push({x,y,owner:f,arm:.6,dmg:ab.dmg,root:ab.root});
+      D.traps.push({x,y,owner:f,arm:.6,dmg:ab.dmg*mul,root:ab.root});
       const mine=D.traps.filter(t=>t.owner===f);if(mine.length>3)D.traps.splice(D.traps.indexOf(mine[0]),1);
       snd(400,.06,'square',.04,.5);break;}
     case 'totem':{
       let x=f.x+c*(f.r+24),y=f.y+s*(f.r+24);
       if(inObs(x,y,12)||!inArena(x,y,12)){x=f.x;y=f.y}
-      D.totems.push({x,y,owner:f,shots:ab.shots,t:.5,iv:ab.interval,dmg:ab.dmg,fade:0});snd(220,.2,'triangle',.05,1.5);break;}
+      D.totems.push({x,y,owner:f,shots:ab.shots,t:.5,iv:ab.interval,dmg:ab.dmg*mul,fade:0});snd(220,.2,'triangle',.05,1.5);break;}
     case 'blink':
       for(let d=ab.dist;d>=0;d-=8){const x=f.x+c*d,y=f.y+s*d;
         if(inArena(x,y,f.r)&&!inObs(x,y,f.r)&&Math.hypot(x-e.x,y-e.y)>f.r+e.r+2){
@@ -831,15 +831,24 @@ function use(f,i){
       let tx=f.x+c*ab.dist,ty=f.y+s*ab.dist;
       if(!e.dead&&e.stealthT<=0&&dist(f,e)<ab.dist+60&&ad(Math.atan2(e.y-f.y,e.x-f.x),a)<.8){tx=e.x;ty=e.y}
       tx=Math.max(AR.x0+f.r,Math.min(AR.x1-f.r,tx));ty=Math.max(AR.y0+f.r,Math.min(AR.y1-f.r,ty));
-      f.dive={x0:f.x,y0:f.y,x1:tx,y1:ty,t:0,dur:.55,ab};f.atkDur=f.atkT=.55;snd(500,.4,'sawtooth',.04,2);break}
+      f.dive={x0:f.x,y0:f.y,x1:tx,y1:ty,t:0,dur:.55,ab,mul};f.atkDur=f.atkT=.55;snd(500,.4,'sawtooth',.04,2);break}
     case 'roots':
       D.fx.push({k:'roots',x:f.x,y:f.y,r:ab.radius+f.r,t:0,dur:.9});snd(120,.4,'triangle',.06,.6);
-      if(!e.dead&&dist(f,e)<=ab.radius+f.r+e.r)hit(e,ab.dmg,f,{root:ab.root});
+      if(!e.dead&&dist(f,e)<=ab.radius+f.r+e.r)hit(e,ab.dmg*mul,f,{root:ab.root});
       break;
     case 'stealth':f.stealthT=ab.dur;burst(f.x,f.y,'#b77cff',18,120);snd(300,.3,'sine',.04,.5);break;
   }
 }
 
+// пасхалка ←↑→↓ + удар: мега-землетрясение на 50 клеток вокруг (больше всей арены) — враг погибает
+function megaQuake(f){
+  const e=enemyOf(f),R=50*CELL;D.shake=45;snd(40,1.2,'sawtooth',.12,.3);setTimeout(()=>snd(60,.8,'square',.08,.5),200);
+  for(let j=0;j<6;j++)D.fx.push({k:'ring',x:f.x,y:f.y,r:180+j*260,t:0,dur:.6+j*.15,col:j%2?'#ffb04a':'#d8c8a8'});
+  for(let j=0;j<26;j++){const a=rnd(0,7),d=rnd(60,900);boom(f.x+Math.cos(a)*d,f.y+Math.sin(a)*d,rnd(120,260));
+    D.fx.push({k:'bolt',x1:f.x,y1:f.y,x2:f.x+Math.cos(a)*d,y2:f.y+Math.sin(a)*d,t:0,dur:.6})}
+  burst(f.x,f.y,'#c9a46a',80,700);
+  if(!e.dead&&dist(f,e)<R){e.dive=null;e.shieldT=0;e.blockT=0;boom(e.x,e.y,320);hit(e,1e6,f,{knock:900,ang:Math.atan2(e.y-f.y,e.x-f.x)})}
+}
 // взрыв бомбы: задевает всё в радиусе
 function blast(p,e){boom(p.x,p.y,p.aoe*2.4);D.shake=Math.max(D.shake,8);snd(80,.3,'sawtooth',.07,.4);
   if(!e.dead&&Math.hypot(e.x-p.x,e.y-p.y)<p.aoe+e.r)hit(e,p.dmg,p,{knock:220,ang:Math.atan2(e.y-p.y,e.x-p.x)})}
@@ -855,7 +864,7 @@ function updFighter(f,dt){
   if(f.dive){const d=f.dive;d.t+=dt;const k=Math.min(1,d.t/d.dur);f.x=d.x0+(d.x1-d.x0)*k;f.y=d.y0+(d.y1-d.y0)*k;f.face=Math.atan2(d.y1-d.y0,d.x1-d.x0)||f.face;
     if(Math.random()<.7)D.parts.push({x:f.x,y:f.y,vx:rnd(-30,30),vy:rnd(-30,30),life:.4,max:.4,col:'#ff9a2a',r:4,fire:1});
     if(k>=1){f.dive=null;const ab=d.ab,e=enemyOf(f);boom(f.x,f.y,ab.radius*2.2);D.shake=10;snd(90,.4,'sawtooth',.08,.4);
-      if(!e.dead&&dist(f,e)<=ab.radius+e.r)hit(e,ab.dmg,f,{wave:1,knock:300});
+      if(!e.dead&&dist(f,e)<=ab.radius+e.r)hit(e,ab.dmg*(d.mul||1),f,{wave:1,knock:300});
       D.fires.push({x:f.x,y:f.y,r:ab.radius,t:ab.burn,max:ab.burn,owner:f,dps:ab.dps})}
     f.moving=false;return}
   // местность: болото и лава действуют только на наземных
@@ -894,10 +903,15 @@ function updFighter(f,dt){
     if(!e.dead&&inCone(f,e,ab.range,ab.arc))hit(e,ab.dps*dt*(f.breathMul||1),f,{tick:1});
   }
   if(ctl){const aN=inp.a,bN=inp.b,dir=mx<-.5?'l':mx>.5?'r':null;
+    const vd=my<-.5?'u':my>.5?'d':null;
     if(dir&&dir!==f.prevDir)f.seq.push([dir,D.t]);f.prevDir=dir;
-    if(aN&&!f.prevA)f.seq.push(['a',D.t]);f.prevA=aN;
+    if(vd&&vd!==f.prevV)f.seq.push([vd,D.t]);f.prevV=vd;
+    if(aN&&!f.prevA)f.seq.push(['a',D.t]);if(bN&&!f.prevB)f.seq.push(['b',D.t]);f.prevA=aN;f.prevB=bN;
     if(f.seq.length>5)f.seq.splice(0,f.seq.length-5);const q=f.seq;
-    if(q.length===5&&q.map(x=>x[0]).join('')==='lrlra'&&D.t-q[0][1]<2.5){f.seq=[];f.superArm=1;f.cd[0]=0;use(f,0)}
+    const qs=q.map(x=>x[0]).join(''),fast=q.length===5&&D.t-q[0][1]<2.5,hitI=qs[4]==='b'?1:0;
+    if(fast&&/^lrlr[ab]$/.test(qs)){f.seq=[];f.superArm=1;f.cd[hitI]=0;use(f,hitI)} // пасхалка: ←→←→ + любой удар — в 20 раз сильнее
+    else if(fast&&/^lurd[ab]$/.test(qs)){f.seq=[];megaQuake(f)} // пасхалка: ←↑→↓ + удар — мега-землетрясение
+    else if(fast&&/^udud[ab]$/.test(qs)){f.seq=[];if(!f.turbo){f.turbo=1;f.spd*=5;burst(f.x,f.y,'#8fd8ff',30,260);snd(1200,.3,'sine',.05,.3)}use(f,hitI)} // пасхалка: ↑↓↑↓ + удар — до конца боя впятеро быстрее
     else{if(aN)use(f,0);if(bN)use(f,1)}}
   const st=Math.hypot(f.x-px0,f.y-py0);f.moving=st>dt*20;f.walk+=st;
   if(f.hasteT>0&&f.moving&&Math.random()<.6)D.parts.push({x:f.x+rnd(-6,6),y:f.y+rnd(-6,6),vx:0,vy:0,life:.3,max:.3,col:'#8fd8ff',r:f.r*.35});
