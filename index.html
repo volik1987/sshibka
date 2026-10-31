@@ -570,7 +570,7 @@ const HOMEK={dmg:1.25,spd:1.15,def:.85};
 function mkFighter(u,idx,pos,face,foe){
   let T=TYPES[u.t],skin=u.t,shade=false;
   if(T.mimic&&foe){T={...TYPES[foe.t],name:'Тень: '+TYPES[foe.t].name,leader:0,side:u.side};skin=foe.t;shade=true}
-  const f={u,T,skin,shade,seq:[],prevA:false,prevB:false,superArm:0,slowT:0,home:!!(D0ter&&T.home===D0ter),poisonT:0,poisonDps:0,poisonSrc:null,dive:null,breathMul:1,idx,side:u.side,col:SIDES[u.side].col,dark:SIDES[u.side].dark,ground:T.mv[0]==='ground',
+  const f={u,T,skin,shade,seq:[],prevA:false,prevDir:null,superArm:0,slowT:0,home:!!(D0ter&&T.home===D0ter),poisonT:0,poisonDps:0,poisonSrc:null,dive:null,breathMul:1,idx,side:u.side,col:SIDES[u.side].col,dark:SIDES[u.side].dark,ground:T.mv[0]==='ground',
     x:pos.x,y:pos.y,face,r:T.r,spd:T.spd*lvlK(u).spd,hp:u.hp,max:maxHp(u),dmgK:lvlK(u).dmg,cdK:lvlK(u).cd,lvl:u.lvl||1,hasteT:0,shieldT:0,powerT:0,
     cd:[0,0],vx:0,vy:0,dashT:0,dvx:0,dvy:0,dashDmg:0,dashHit:false,blockT:0,stealthT:0,healT:0,healRate:0,rootT:0,breathT:0,breathAb:null,flash:0,acc:0,dead:false,bob:Math.random()*6,portT:0,zone:null,walk:0,moving:false,anim:Math.random()*3,atkT:0,atkDur:.25};
   if(f.home){f.dmgK*=HOMEK.dmg;f.spd*=HOMEK.spd}
@@ -696,7 +696,7 @@ function use(f,i){
   const ab=f.T.ab[i];
   if(f.cd[i]>0||f.dead||f.dashT>0)return;
   f.cd[i]=ab.cd*f.cdK;if(ab.k!=='stealth')f.stealthT=0;
-  // пасхалка: атака-умение ×3 подряд — удар в 50 раз сильнее (в правилах нарочно не описана)
+  // пасхалка: ←→←→ + атака — удар в 50 раз сильнее (в правилах нарочно не описана)
   let mul=1;
   if(i===0&&f.superArm>0){mul=50;f.superArm=0;D.shake=16;snd(70,.5,'sawtooth',.09,.4);
     D.fx.push({k:'ring',x:f.x,y:f.y,r:f.r*4,t:0,dur:.4,col:'#ffe04a'})}
@@ -819,10 +819,11 @@ function updFighter(f,dt){
       D.parts.push({x:f.x+Math.cos(f.face)*f.r,y:f.y+Math.sin(f.face)*f.r,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,life:(ab.range+f.r)/sp,max:(ab.range+f.r)/sp,col:Math.random()<.5?'#ffb030':'#ff5a20',r:rnd(3,6),fire:1,flame:1})}
     if(!e.dead&&inCone(f,e,ab.range,ab.arc))hit(e,ab.dps*dt*(f.breathMul||1),f,{tick:1});
   }
-  if(ctl){const aN=held(k.a)||pd.a,bN=held(k.b)||pd.b;
-    if(aN&&!f.prevA)f.seq.push(['a',D.t]);if(bN&&!f.prevB)f.seq.push(['b',D.t]);f.prevA=aN;f.prevB=bN;
-    if(f.seq.length>6)f.seq.splice(0,f.seq.length-6);const q=f.seq;
-    if(q.length===6&&q.every((x,j)=>x[0]===(j%2?'b':'a'))&&D.t-q[0][1]<3){f.seq=[];f.superArm=1;f.cd[0]=0;use(f,0)}
+  if(ctl){const aN=held(k.a)||pd.a,bN=held(k.b)||pd.b,dir=mx<-.5?'l':mx>.5?'r':null;
+    if(dir&&dir!==f.prevDir)f.seq.push([dir,D.t]);f.prevDir=dir;
+    if(aN&&!f.prevA)f.seq.push(['a',D.t]);f.prevA=aN;
+    if(f.seq.length>5)f.seq.splice(0,f.seq.length-5);const q=f.seq;
+    if(q.length===5&&q.map(x=>x[0]).join('')==='lrlra'&&D.t-q[0][1]<2.5){f.seq=[];f.superArm=1;f.cd[0]=0;use(f,0)}
     else{if(aN)use(f,0);if(bN)use(f,1)}}
   const st=Math.hypot(f.x-px0,f.y-py0);f.moving=st>dt*20;f.walk+=st;
   if(f.hasteT>0&&f.moving&&Math.random()<.6)D.parts.push({x:f.x+rnd(-6,6),y:f.y+rnd(-6,6),vx:0,vy:0,life:.3,max:.3,col:'#8fd8ff',r:f.r*.35});
