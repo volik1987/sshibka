@@ -36,7 +36,7 @@ body.narrow #side>.box{width:min(100%,560px)}
 #left{display:flex;flex-direction:column;gap:10px;align-items:center}
 #turn{font-size:18px;font-weight:700;padding:8px 20px;border-radius:999px;border:2px solid currentColor;background:#000a;box-shadow:0 0 18px currentColor inset}
 #turn.dawn{color:var(--dawn)} #turn.ash{color:var(--ash)}
-#board{position:relative;display:grid;grid-template-columns:repeat(8,78px);grid-template-rows:repeat(8,78px);border:10px solid #3a2614;border-image:linear-gradient(135deg,#8a6236,#3b2412 40%,#a37a45 60%,#3b2412) 1;box-shadow:0 0 0 2px #d9b46a66,0 18px 60px #000d}
+#board{position:relative;display:grid;grid-template-columns:repeat(16,78px);grid-template-rows:repeat(12,78px);border:10px solid #3a2614;border-image:linear-gradient(135deg,#8a6236,#3b2412 40%,#a37a45 60%,#3b2412) 1;box-shadow:0 0 0 2px #d9b46a66,0 18px 60px #000d}
 .cell{position:relative;cursor:pointer;background-size:200% 200%}
 .cell.plain{background-image:linear-gradient(#0000,#0000),url(img/b_plain.jpg)}
 .cell.forest{background-image:linear-gradient(#0000,#0000),url(img/b_forest.jpg)}
@@ -137,7 +137,8 @@ kbd{display:inline-block;padding:0 6px;border:1px solid #fff6;border-bottom-widt
     <div class="box" id="ctrlBox"><h3>Управление в бою</h3>
       <div><span class="dawnc">Заря</span> (левая половина): <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, <kbd>F</kbd> атака, <kbd>G</kbd> умение</div>
       <div style="margin-top:4px"><span class="ashc">Пепел</span> (правая половина): стрелки, <kbd>.</kbd> атака, <kbd>/</kbd> умение <span class="mut">(или <kbd>K</kbd><kbd>L</kbd>, Num1/2)</span></div>
-      <div style="margin-top:6px">🎮 <span class="mut">Геймпады: первый — Заря, второй — Пепел. Стик или крестовина — ход, <kbd>A</kbd> атака, <kbd>B</kbd>/<kbd>X</kbd> умение, <kbd>A</kbd>/<kbd>Start</kbd> — «В бой» и «К доске». На доске: крестовина/стик — рамка, <kbd>A</kbd> — выбрать и сходить, <kbd>B</kbd> — отмена.</span> <span id="pads" class="mut"></span></div>
+      <div style="margin-top:6px">🎮 <span class="mut">Геймпады: первый — Заря, второй — Пепел. Стик или крестовина — ход, <kbd>A</kbd> атака, <kbd>B</kbd>/<kbd>X</kbd> умение, <kbd>A</kbd>/<kbd>Start</kbd> — «В бой» и «К доске». На доске: крестовина/стик — рамка, <kbd>A</kbd> — выбрать и сходить, <kbd>B</kbd> — отмена.</span>
+      <div style="margin-top:6px">⚡ <b>Супер-удар</b> <span class="mut">(×10): влево-вправо-влево-вправо и сразу атака; потом 20 с перезарядки</span></div> <span id="pads" class="mut"></span></div>
       <div class="touchonly" style="margin-top:6px">👆 <span class="mut">Планшет: в бою каждый на своей половине — ведите пальцем (джойстик), справа внизу ⚔ атака и ✦ умение.</span></div>
     </div>
     <div class="box" id="logBox"><h3>Летопись</h3><div id="log"></div></div>
@@ -199,15 +200,35 @@ const TYPES={
     ab:[{k:'shot',n:'Тени',dmg:9,spd:420,r:6,cd:.85,life:1.6,col:'#b77cff',count:3,fx:'arcane',spread:.25,d:'веер из трёх теней'},
         {k:'stealth',n:'Морок',dur:1.6,cd:5,d:'1,6 с почти невидим и быстрее'}]},
 };
-const BACK={dawn:['strazh','luchnica','grifon','zhrica','svetoch','grifon','luchnica','strazh'],
-            ash:['troll','garpun','viverna','shaman','vladyka','viverna','garpun','troll']};
+Object.assign(TYPES,{
+  elf:{side:'dawn',name:'Эльф',g:'🧝',hp:80,spd:170,r:16,mv:['ground',3],
+    ab:[{k:'melee',n:'Клинок',dmg:13,range:38,arc:1.6,cd:.5,d:'быстрый взмах мечом'},
+        {k:'shot',n:'Лук',dmg:12,spd:620,r:4,cd:1.1,life:1.6,col:'#d8ffb0',arrow:1,d:'меткая стрела — и рубит, и стреляет'}]},
+  ent:{side:'dawn',name:'Энт',g:'🌳',hp:175,spd:85,r:27,mv:['ground',2],regen:2,
+    ab:[{k:'melee',n:'Ветви',dmg:20,range:52,arc:2.2,cd:1.1,knock:300,d:'размашистый удар ветвями, отбрасывает'},
+        {k:'roots',n:'Корни',dmg:10,radius:170,root:1.6,cd:6,d:'корни хватают врага рядом: урон и обездвиживание 1,6 с'}],
+    note:'Сам понемногу залечивает раны в бою (2 в секунду).'},
+  feniks:{side:'dawn',name:'Феникс',g:'🔥',hp:95,spd:175,r:21,mv:['fly',4],
+    ab:[{k:'shot',n:'Огненное перо',dmg:11,spd:540,r:6,cd:.6,life:1.5,col:'#ffb040',fx:'feather',d:'быстрое огненное перо'},
+        {k:'dive',n:'Падение',dist:320,dmg:22,radius:115,burn:3,dps:16,cd:5,d:'взмывает и обрушивается на место удара (на врага, если он впереди): взрыв и 3 с огня вокруг'}]},
+  naga:{side:'ash',name:'Нага',g:'🐍',hp:90,spd:160,r:18,mv:['ground',3],swamp:1,
+    ab:[{k:'melee',n:'Трезубец',dmg:14,range:54,arc:1,cd:.6,knock:120,d:'длинный укол трезубцем'},
+        {k:'shot',n:'Яд',dmg:6,spd:420,r:7,cd:3,life:1.6,col:'#9ff04a',fx:'poison',poison:4,pdps:6,d:'плевок ядом: 6 урона сразу и ещё 24 за 4 с'}],
+    note:'Болото её не замедляет.'},
+  perevertysh:{side:'ash',name:'Перевёртыш',g:'🎭',hp:95,spd:150,r:17,mv:['ground',3],mimic:1,
+    ab:[{k:'copy',n:'Отражение',cd:0,d:'в поединке становится тёмной копией противника: его облик, удары, умения и скорость'},
+        {k:'copy',n:'Своя жизнь',cd:0,d:'здоровье у копии — своё (95)'}]},
+});
+const BACK={dawn:['strazh','ent','luchnica','elf','grifon','zhrica','feniks','svetoch','elf','feniks','zhrica','grifon','elf','luchnica','ent','strazh'],
+            ash:['troll','naga','garpun','perevertysh','viverna','shaman','naga','vladyka','perevertysh','garpun','shaman','viverna','naga','garpun','perevertysh','troll']};
 const PAWN={dawn:'ratnik',ash:'pepelnik'};
-const WELLS=[[3,1],[3,5],[4,2],[4,6]];
-const N=8, SAVE='sshibka-v1';
+const WELLS=[[5,3],[6,12],[5,9],[6,6],[3,7],[8,8]]; // симметричны относительно центра доски
+const NR=12,NC=16,N=NC, SAVE='sshibka-v2'; // N — ширина строки для ключей r*N+c
 const TER_NAME={plain:'луг',forest:'лес',rock:'скалы',well:'Источник'};
 const uImg=t=>`img/u_${t}.png`;
 // уровни: после каждой победы в поединке боец растёт (до 5-го)
 const MAXLVL=5;
+const canLvl=u=>u.t===PAWN[u.side]; // растут только пешки — иначе сильных фигур не одолеть
 const lvlK=u=>{const l=(u.lvl||1)-1;return {hp:1+.15*l,dmg:1+.12*l,spd:1+.05*l,cd:1-.06*l}};
 const maxHp=u=>Math.round(TYPES[u.t].hp*lvlK(u).hp);
 const lvlTxt=u=>{const l=(u.lvl||1)-1;return l?`здоровье +${15*l}%, урон +${12*l}%, скорость +${5*l}%, перезарядка −${6*l}%`:''};
@@ -218,15 +239,24 @@ function loadImg(k,src){const i=new Image();i.src=src;IMG[k]=i}
 const FRAMES=['','_w1','_w2','_a'];
 Object.keys(TYPES).forEach(k=>FRAMES.forEach(fr=>loadImg('u_'+k+fr,`img/u_${k}${fr}.png`)));
 // во сколько раз кадр шире «стоящей» фигуры (кадры выровнены по общему якорю)
-const SPRK={ratnik:1.133,luchnica:1,grifon:1.073,zhrica:1.26,strazh:1.06,svetoch:1.104,pepelnik:1.11,garpun:1.286,viverna:1.017,shaman:1.043,troll:1.067,vladyka:1.067};
+const SPRK={elf:1.109,ent:1.195,feniks:1.003,naga:1.27,perevertysh:1.228,ratnik:1.133,luchnica:1,grifon:1.073,zhrica:1.26,strazh:1.06,svetoch:1.104,pepelnik:1.11,garpun:1.286,viverna:1.017,shaman:1.043,troll:1.067,vladyka:1.067};
 ['oak','pine','boulder','rocks','portal','trap','totem','spring'].forEach(k=>loadImg('p_'+k,`img/p_${k}.png`));
 ['grass','forest','rock','swamp','lava','well'].forEach(k=>loadImg('g_'+k,`img/g_${k}.jpg`));
-['fire','arcane','holy','bolt','skull','boom'].forEach(k=>loadImg('fx_'+k,`img/fx_${k}.png`));
+['fire','arcane','holy','bolt','skull','boom','poison','burn','roots','feather'].forEach(k=>loadImg('fx_'+k,`img/fx_${k}.png`));
 // бонусы на арене
 const BONUS={speed:{n:'Ускорение',col:'#8fd8ff',d:'8 с бег в 1,6 раза быстрее'},life:{n:'Жизнь',col:'#ff6a7a',d:'+25% к здоровью (и к максимуму на этот бой)'},
   shield:{n:'Суперзащита',col:'#ffd76a',d:'6 с урон по вам в 5 раз меньше'},power:{n:'Сила',col:'#ff7a3a',d:'8 с удары и умения сильнее в 1,5 раза'}};
 Object.keys(BONUS).forEach(k=>loadImg('bn_'+k,`img/bn_${k}.png`));
-const ready=i=>i&&i.complete&&i.naturalWidth>0;
+const ready=i=>i&&(i instanceof HTMLCanvasElement||i.complete&&i.naturalWidth>0);
+// тёмная версия спрайта (для Перевёртыша): заливка поверх непрозрачных пикселей, без чтения пикселей — работает и с file://
+const DARK={};
+function darkImg(k){
+  if(DARK[k])return DARK[k];const im=IMG[k];if(!ready(im))return null;
+  const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const x=c.getContext('2d');
+  x.drawImage(im,0,0);x.globalCompositeOperation='source-atop';x.fillStyle='rgba(28,6,48,.62)';x.fillRect(0,0,c.width,c.height);
+  x.globalCompositeOperation='source-over';x.globalAlpha=.25;x.drawImage(im,0,0);
+  return DARK[k]=c;
+}
 
 // ---------- Звук ----------
 let AC=null,muted=false;
@@ -242,17 +272,17 @@ function toggleSnd(){muted=!muted;document.getElementById('sndBtn').textContent=
 let G=null;
 function rnd(a,b){return a+Math.random()*(b-a)}
 function newGame(){
-  const terr=[...Array(N)].map(()=>Array(N).fill('plain'));
+  const terr=[...Array(NR)].map(()=>Array(NC).fill('plain'));
   WELLS.forEach(([r,c])=>terr[r][c]='well');
-  const put=(kind,n)=>{let k=0,tries=0;while(k<n&&tries++<200){const r=2+(Math.random()*2|0),c=Math.random()*N|0;
-    if(terr[r][c]!=='plain'||terr[N-1-r][N-1-c]!=='plain')continue;terr[r][c]=terr[N-1-r][N-1-c]=kind;k++;}};
-  put('rock',2);put('forest',4);
+  const put=(kind,n)=>{let k=0,tries=0;while(k<n&&tries++<400){const r=2+(Math.random()*4|0),c=Math.random()*NC|0;
+    if(terr[r][c]!=='plain'||terr[NR-1-r][NC-1-c]!=='plain')continue;terr[r][c]=terr[NR-1-r][NC-1-c]=kind;k++;}};
+  put('rock',6);put('forest',12);
   const units=[];let id=1;
-  for(let c=0;c<N;c++){
+  for(let c=0;c<NC;c++){
     units.push({id:id++,t:BACK.ash[c],side:'ash',r:0,c});
     units.push({id:id++,t:PAWN.ash,side:'ash',r:1,c});
-    units.push({id:id++,t:PAWN.dawn,side:'dawn',r:6,c});
-    units.push({id:id++,t:BACK.dawn[c],side:'dawn',r:7,c});
+    units.push({id:id++,t:PAWN.dawn,side:'dawn',r:NR-2,c});
+    units.push({id:id++,t:BACK.dawn[c],side:'dawn',r:NR-1,c});
   }
   units.forEach(u=>{u.hp=TYPES[u.t].hp;u.lvl=1});
   G={terr,units,turn:'dawn',log:[],sel:null,over:null,last:null,moveNo:1};
@@ -263,7 +293,7 @@ function save(){try{const {terr,units,turn,log,over,last,moveNo}=G;localStorage.
 function load(){try{const s=JSON.parse(localStorage.getItem(SAVE));if(s&&s.units&&!s.over){s.units.forEach(u=>u.lvl=u.lvl||1);G={...s,sel:null};return true}}catch(e){}return false}
 function addLog(h){G.log.unshift(h);G.log.length=Math.min(G.log.length,60)}
 const unitAt=(r,c)=>G.units.find(u=>u.r===r&&u.c===c);
-const inB=(r,c)=>r>=0&&c>=0&&r<N&&c<N;
+const inB=(r,c)=>r>=0&&c>=0&&r<NR&&c<NC;
 const sideHtml=s=>`<span class="${s}c">${SIDES[s].name}</span>`;
 const uName=u=>`<span class="${u.side}c">${TYPES[u.t].name}</span>`;
 
@@ -339,7 +369,7 @@ function render(){
   const mv=G.sel?movesOf(G.sel):[];
   const mvMap=new Map(mv.map(m=>[m.r*N+m.c,m]));
   let h='';
-  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+  for(let r=0;r<NR;r++)for(let c=0;c<NC;c++){
     const t=G.terr[r][c],u=unitAt(r,c),m=mvMap.get(r*N+c);
     let cls=`cell ${t} ${(r+c)%2?'d':'l'} p${(r*3+c*5)%4}`;
     if(m)cls+=m.atk?' atk':' mv';
@@ -367,7 +397,7 @@ function showInfo(u,vs){
   el.innerHTML=`<h3>${SIDES[u.side].name}${T.leader?' · лидер':''}</h3>
     <div class="nm"><img src="${uImg(u.t)}" alt=""> ${T.name}</div>
     <div>Здоровье: <b>${u.hp}</b> / ${maxHp(u)} · скорость ${Math.round(T.spd*lvlK(u).spd)}</div>
-    <div>Уровень <b>${u.lvl||1}</b>${u.lvl>1?` <span class="mut">(${lvlTxt(u)})</span>`:` <span class="mut">— растёт после каждой победы в поединке</span>`}</div>
+    ${canLvl(u)?`<div>Уровень <b>${u.lvl||1}</b>${u.lvl>1?` <span class="mut">(${lvlTxt(u)})</span>`:` <span class="mut">— пешка растёт после каждой победы в поединке</span>`}</div>`:''}
     <div class="mut">${T.mv[0]==='fly'?'Летает (болота и лава не страшны)':'Ходит по земле'} на ${T.mv[1]} кл. · стоит: ${TER_NAME[ter]}</div>
     ${T.ab.map((a,i)=>`<div class="ab"><span class="k">${keys[i]}</span><b>${a.n}</b> <span class="mut">— ${a.d} (перезарядка ${a.cd} с)</span></div>`).join('')}
     ${vs?`<div class="ab" style="border:1px solid #f54">⚔ Нападение на ${uName(vs)} (${vs.hp}/${maxHp(vs)}, ур. ${vs.lvl||1}), арена: ${TER_NAME[G.terr[vs.r][vs.c]]}</div>`:''}`;
@@ -400,7 +430,7 @@ function doMove(u,m){
     animateMove(u,m.path,{},()=>{
       G.last=[[u.r,u.c],[m.r,m.c]];
       u.r=m.r;u.c=m.c;
-      addLog(`${uName(u)} → ${'abcdefgh'[m.c]}${N-m.r}${G.terr[m.r][m.c]==='well'?' (Источник)':''}`);
+      addLog(`${uName(u)} → ${'abcdefghijklmnop'[m.c]}${NR-m.r}${G.terr[m.r][m.c]==='well'?' (Источник)':''}`);
       endTurn();
     });
   } else {const d=unitAt(m.r,m.c);snd(300,.15,'sawtooth',.04,.6);animateMove(u,m.path,{strike:1},()=>{render();startDuel(u,d)})}
@@ -446,10 +476,12 @@ function showRules(){
     <li><b>Цель</b>: уничтожить <b>всю</b> армию врага. Лидеры (♛ Светоч и Владыка) — просто самые сильные бойцы, их гибель партию не заканчивает. Источники ✦ лечат стоящих на них.</li>
     <li><b>Ход</b>: выберите свою фигуру — подсветятся клетки. Наземные идут по свободным клеткам в 8 направлениях и не проходят сквозь фигуры и скалы. Летающие перелетают всё и могут садиться на скалы.</li>
     <li><b>Нападение</b>: шагните на клетку врага — начнётся поединок. Экран делится пополам: слева камера Зари, справа — Пепла. Арена огромная (16 экранов), противника ищите по стрелке у края и по мини-карте. В лесу много деревьев, на скалах — валуны и больше лавы, у Источника — целебный родник.</li>
-    <li>На арене: <div class="zl"><img src="img/g_swamp.jpg"> <b>болото</b> — наземные вязнут и идут вдвое медленнее;</div><div class="zl"><img src="img/g_lava.jpg"> <b>лава</b> — быстро сжигает наземных;</div><div class="zl"><img src="img/p_portal.png"> <b>портал</b> — лечит на 30% и переносит к другому порталу (потом перезаряжается).</div> Летающие над болотом и лавой парят без вреда.</li>
+    <li>На арене: <div class="zl"><img src="img/g_swamp.jpg"> <b>болото</b> — наземные вязнут и идут вдвое медленнее;</div><div class="zl"><img src="img/g_lava.jpg"> <b>лава</b> — быстро сжигает наземных;</div><div class="zl"><img src="img/p_portal.png"> <b>целебный портал</b> в центре — постойте в нём, он понемногу лечит (запас ${PORTAL_CAP} здоровья), потом 30 с перезаряжается.</div> Летающие над болотом и лавой парят без вреда.</li>
     <li>У каждого бойца две способности: атака и особое умение. Поединок длится 90 с — если никто не пал, нападающий отступает.</li>
     <li><b>Бонусы</b> иногда появляются на арене — подберите, пробежав по ним: ${Object.values(BONUS).map(b=>`<b>${b.n}</b> — ${b.d}`).join('; ')}.</li>
-    <li><b>Уровни</b>: победитель поединка получает новый уровень (до ★${MAXLVL}): +15% здоровья, +12% урона, +5% скорости и −6% к перезарядке умений за каждый. Уровень виден звёздочкой на фигуре.</li>
+    <li><b>Уровни</b> (только у пешек — Ратников и Пепельников): пешка-победитель получает новый уровень (до ★${MAXLVL}): +15% здоровья, +12% урона, +5% скорости и −6% к перезарядке умений за каждый. Уровень виден звёздочкой на фигуре.</li>
+    <li><b>Супер-удар</b>: быстро влево-вправо-влево-вправо (стик, крестовина, клавиши или палец), затем сразу атака — удар в 10 раз сильнее. Потом ${SUPER_CD} с перезарядки.</li>
+    <li><b>Новые бойцы</b>: Эльф (меч и лук), Энт (ветви, корни, сам лечится), Феникс (обрушивается с неба и поджигает землю), Нага (трезубец и яд, болото не мешает), Перевёртыш (в бою становится тёмной копией противника).</li>
     <li><b>Раны сохраняются</b> после боя. В начале своего хода фигуры лечатся на 5%, а стоящие на Источнике — на 25%.</li>
   </ul>
   <p><b>Бой:</b> <span class="dawnc">Заря</span> — <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, <kbd>F</kbd> атака, <kbd>G</kbd> умение. <span class="ashc">Пепел</span> — стрелки, <kbd>.</kbd> атака, <kbd>/</kbd> умение (или <kbd>K</kbd>/<kbd>L</kbd>, Num1/Num2). Удары летят туда, куда смотрит боец. Кнопку можно держать.</p>
@@ -464,7 +496,7 @@ const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
 let W=1280,HALF=640;const H=720,HUD=66;          // экран: две половины
 const WW=2560,WH=2560;                        // арена: 4×4 экрана игрока
 const AR={x0:0,y0:0,x1:WW,y1:WH};
-const LIMIT=90,LAVA_DPS=32,SWAMP_SLOW=.5,PORTAL_HEAL=.3,PORTAL_CD=10;
+const LIMIT=90,LAVA_DPS=32,SWAMP_SLOW=.5,PORTAL_CAP=36,PORTAL_RATE=9,PORTAL_CD=30,SUPER_CD=20;
 const CTRL=[{u:['KeyW'],d:['KeyS'],l:['KeyA'],r:['KeyD'],a:['KeyF'],b:['KeyG'],ka:'F',kb:'G'},
             {u:['ArrowUp'],d:['ArrowDown'],l:['ArrowLeft'],r:['ArrowRight'],a:['Period','KeyK','Numpad1','NumpadDecimal'],b:['Slash','KeyL','Numpad2','NumpadDivide'],ka:'.',kb:'/'}];
 const keys=new Set();
@@ -485,9 +517,10 @@ function pat(k){
 const GROUND={plain:'grass',forest:'forest',rock:'rock',well:'well'};
 const GROUND_COL={grass:'#4d6b36',forest:'#24331f',rock:'#6b6258',well:'#4b5e3c',swamp:'#2f4426',lava:'#c8461a'};
 
-function mkFighter(u,idx,pos,face){
-  const T=TYPES[u.t];
-  return {u,T,idx,side:u.side,col:SIDES[u.side].col,dark:SIDES[u.side].dark,ground:T.mv[0]==='ground',
+function mkFighter(u,idx,pos,face,foe){
+  let T=TYPES[u.t],skin=u.t,shade=false;
+  if(T.mimic&&foe){T={...TYPES[foe.t],name:'Тень: '+TYPES[foe.t].name,leader:0,side:u.side};skin=foe.t;shade=true}
+  return {u,T,skin,shade,combo:[],lastHx:0,superArm:0,superCd:0,poisonT:0,poisonDps:0,poisonSrc:null,dive:null,breathMul:1,idx,side:u.side,col:SIDES[u.side].col,dark:SIDES[u.side].dark,ground:T.mv[0]==='ground',
     x:pos.x,y:pos.y,face,r:T.r,spd:T.spd*lvlK(u).spd,hp:u.hp,max:maxHp(u),dmgK:lvlK(u).dmg,cdK:lvlK(u).cd,lvl:u.lvl||1,hasteT:0,shieldT:0,powerT:0,
     cd:[0,0],vx:0,vy:0,dashT:0,dvx:0,dvy:0,dashDmg:0,dashHit:false,blockT:0,stealthT:0,healT:0,healRate:0,rootT:0,breathT:0,breathAb:null,flash:0,acc:0,dead:false,bob:Math.random()*6,portT:0,zone:null,walk:0,moving:false,anim:Math.random()*3,atkT:0,atkDur:.25};
 }
@@ -503,7 +536,7 @@ function genArena(ter){
              rock:{sw:3,lv:9,obs:75,kinds:['boulder','rocks','rocks']},
              well:{sw:6,lv:3,obs:45,kinds:['oak','boulder','pine']}}[ter];
   const zones=[],obs=[],portals=[];
-  const pool=ter==='well'?{x:WW/2,y:WH/2,r:90}:null;
+  const pool=ter==='well'?{x:WW/2,y:WH/2+560,r:90}:null;
   const blob=kind=>{const x=rnd(220,WW-220),y=rnd(220,WH-220),n=3+(Math.random()*4|0),base=kind==='lava'?rnd(70,120):rnd(100,170),cs=[];
     for(let i=0;i<n;i++){const a=rnd(0,7),d=i?rnd(.45,1.1)*base:0;cs.push({x:x+Math.cos(a)*d,y:y+Math.sin(a)*d,r:base*rnd(.55,1)})}
     let R=0;for(const c of cs)R=Math.max(R,Math.hypot(c.x-x,c.y-y)+c.r);return {kind,x,y,R,cs}};
@@ -513,8 +546,9 @@ function genArena(ter){
     if(zones.some(z=>Math.hypot(b.x-z.x,b.y-z.y)<b.R+z.R+60))continue;zones.push(b);break}}
   const free=(x,y,pad)=>x>pad&&y>pad&&x<WW-pad&&y<WH-pad&&!zoneIn(zones,x,y,pad)&&!(pool&&Math.hypot(x-pool.x,y-pool.y)<pool.r+pad)&&!portals.some(p=>Math.hypot(x-p.x,y-p.y)<p.r+pad);
   let tries=0;
-  while(portals.length<4&&tries++<800){const x=rnd(200,WW-200),y=rnd(200,WH-200);
-    if(!free(x,y,90)||portals.some(p=>Math.hypot(x-p.x,y-p.y)<700))continue;portals.push({x,y,r:48,cd:0,rot:rnd(0,7)})}
+  // один целебный портал в центре: понемногу лечит, отдав запас — 30 с перезаряжается (никуда не переносит)
+  for(let i=zones.length-1;i>=0;i--)if(Math.hypot(zones[i].x-WW/2,zones[i].y-WH/2)<zones[i].R+120)zones.splice(i,1);
+  portals.push({x:WW/2,y:WH/2,r:56,cd:0,charge:PORTAL_CAP,rot:0});
   // точки появления: подальше друг от друга, но не у края
   let s0,s1;tries=0;
   do{s0={x:rnd(350,WW-350),y:rnd(350,WH-350)};const a=rnd(0,7),d=rnd(950,1250);s1={x:s0.x+Math.cos(a)*d,y:s0.y+Math.sin(a)*d};tries++}
@@ -544,19 +578,20 @@ function startDuel(att,def){
   const ter=G.terr[def.r][def.c];
   const dawnU=att.side==='dawn'?att:def,ashU=att.side==='ash'?att:def;
   const ar=genArena(ter),[s0,s1]=ar.spawn,a=Math.atan2(s1.y-s0.y,s1.x-s0.x);
-  D={att,def,ter,cell:{r:def.r,c:def.c},bonus:[],bonusT:3,f:[mkFighter(dawnU,0,s0,a),mkFighter(ashU,1,s1,a+Math.PI)],proj:[],fx:[],parts:[],floats:[],traps:[],totems:[],later:[],
+  D={att,def,ter,cell:{r:def.r,c:def.c},bonus:[],bonusT:3,fires:[],f:[mkFighter(dawnU,0,s0,a,ashU),mkFighter(ashU,1,s1,a+Math.PI,dawnU)],proj:[],fx:[],parts:[],floats:[],traps:[],totems:[],later:[],
      ...ar,t:0,limit:LIMIT,phase:'intro',cdT:0,endT:0,timeout:false,shake:0};
   document.getElementById('duel').classList.add('on');fitCanvas();
   touchReset();document.querySelectorAll('.th').forEach(th=>{const f=D.f[+th.dataset.i];th.querySelectorAll('.tb').forEach(b=>b.querySelector('span').textContent=f.T.ab[b.dataset.k==='a'?0:1].n)});
   snd(196,.25,'sawtooth',.05,.5);
   const card=f=>{const p=f.idx,k=CTRL[p];return `<div class="fc ${f.side}"><img class="g" src="${uImg(f.u.t)}" alt="">
-    <div style="font-size:20px;font-weight:700">${f.T.name}${f.u===att?' <span class="mut">(нападает)</span>':''}</div>
+    <div style="font-size:20px;font-weight:700">${f.shade?TYPES[f.u.t].name+' → '+f.T.name:f.T.name}${f.u===att?' <span class="mut">(нападает)</span>':''}</div>
+    ${f.shade?'<div class="mut">Перевёртыш становится тёмной копией противника</div>':''}${f.T.note?`<div class="mut">${f.T.note}</div>`:''}
     <div>Здоровье ${Math.ceil(f.hp)} / ${f.max} · ${f.ground?'наземный':'летает'} · <b>ур. ${f.lvl}</b>${f.lvl>1?` <span class="mut">(${lvlTxt(f.u)})</span>`:''}</div>
     ${f.T.ab.map((a,i)=>`<div style="margin-top:6px"><kbd>${i?k.kb:k.ka}</kbd> <b>${a.n}</b> <span class="mut">— ${a.d}</span></div>`).join('')}
     <div class="keys">Движение: ${p?'стрелки · правая половина экрана':'<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · левая половина экрана'}</div></div>`};
   modal(`<h2 class="center">Поединок · арена: ${TER_NAME[ter]}</h2>
     <div class="vs">${card(D.f[0])}<div class="mid">⚔</div>${card(D.f[1])}</div>
-    <p class="center mut">Арена в 16 экранов: ищите врага по стрелке у края и мини-карте. Болото замедляет, лава жжёт наземных, порталы лечат и переносят. Иногда появляются бонусы: <b>ускорение</b>, <b>жизнь</b>, <b>суперзащита</b> и <b>сила</b>.${ter==='well'?' В центре — целебный родник.':''}</p>
+    <p class="center mut">Арена в 16 экранов: ищите врага по стрелке у края и мини-карте. Болото замедляет, лава жжёт наземных, портал в центре понемногу лечит (раз в 30 с). Иногда появляются бонусы: <b>ускорение</b>, <b>жизнь</b>, <b>суперзащита</b> и <b>сила</b>.${ter==='well'?' В центре — целебный родник.':''}</p>
     <div class="btns" style="justify-content:center;margin-top:10px"><button class="pri" data-pri onclick="beginFight()">В бой! (Пробел)</button></div>`);
 }
 function beginFight(){closeModal();if(!D)return;D.phase='count';D.cdT=2.4;snd(440,.1,'square',.04)}
@@ -587,7 +622,7 @@ function takeBonus(f,k){
 }
 
 function hit(t,dmg,src,o={}){
-  if(t.dead||!D||D.phase==='done')return;
+  if(t.dead||!D||D.phase==='done'||t.dive)return;
   const atk=src&&(src.owner||src);
   if(atk&&atk.dmgK)dmg*=atk.dmgK*(atk.powerT>0?1.5:1);
   if(t.shieldT>0){dmg*=.2;if(!o.tick&&Math.random()<.6)floatTxt(t.x,t.y-t.r-24,'защита','#ffe08a')}
@@ -606,19 +641,24 @@ function use(f,i){
   const ab=f.T.ab[i];
   if(f.cd[i]>0||f.dead||f.dashT>0)return;
   f.cd[i]=ab.cd*f.cdK;if(ab.k!=='stealth')f.stealthT=0;
+  // супер-удар: ←→←→ и сразу атака — десятикратная сила (перезарядка SUPER_CD)
+  let mul=1;
+  if(i===0&&f.superArm>0&&f.superCd<=0){mul=10;f.superArm=0;f.superCd=SUPER_CD;D.shake=14;snd(70,.5,'sawtooth',.09,.4);
+    floatTxt(f.x,f.y-f.r-40,'СУПЕР-УДАР ×10','#ffe04a');D.fx.push({k:'ring',x:f.x,y:f.y,r:f.r*4,t:0,dur:.4,col:'#ffe04a'})}
   if(!['block','heal','stealth','blink'].includes(ab.k)){f.atkDur=ab.k==='breath'?ab.dur:ab.k==='dash'?Math.max(.25,ab.dist/760):.25;f.atkT=f.atkDur}
   const a=f.face,c=Math.cos(a),s=Math.sin(a),e=enemyOf(f);
   switch(ab.k){
     case 'melee':
       D.fx.push({k:'slash',f,a,range:ab.range+f.r,arc:ab.arc,t:0,dur:.18,col:f.side==='dawn'?'#fff3b0':'#ffb0a0'});
       snd(260,.08,'sawtooth',.035,.4);
-      D.later.push({t:.06,fn:()=>{if(!f.dead&&inCone(f,e,ab.range,ab.arc))hit(e,ab.dmg,f,{melee:1,knock:ab.knock||140,ang:f.face})}});
+      if(mul>1)D.fx.push({k:'slash',f,a,range:ab.range+f.r+14,arc:ab.arc+.4,t:0,dur:.35,col:'#ffe04a'});
+      D.later.push({t:.06,fn:()=>{if(!f.dead&&inCone(f,e,ab.range,ab.arc))hit(e,ab.dmg*mul,f,{melee:1,knock:(ab.knock||140)*(mul>1?2.5:1),ang:f.face})}});
       break;
     case 'shot':{
-      const n=ab.count||1,ea=Math.atan2(e.y-f.y,e.x-f.x);
+      const n=mul>1?1:ab.count||1,ea=Math.atan2(e.y-f.y,e.x-f.x);
       const base=!e.dead&&e.stealthT<=0&&ad(ea,a)<.45?ea:a; // небольшая доводка на врага
       for(let j=0;j<n;j++){const aa=base+(j-(n-1)/2)*(ab.spread||0);
-        D.proj.push({x:f.x+Math.cos(aa)*(f.r+ab.r+2),y:f.y+Math.sin(aa)*(f.r+ab.r+2),vx:Math.cos(aa)*ab.spd,vy:Math.sin(aa)*ab.spd,r:ab.r,dmg:ab.dmg,
+        D.proj.push({x:f.x+Math.cos(aa)*(f.r+ab.r+2),y:f.y+Math.sin(aa)*(f.r+ab.r+2),vx:Math.cos(aa)*ab.spd,vy:Math.sin(aa)*ab.spd,r:ab.r*(mul>1?1.8:1),dmg:ab.dmg*mul,poison:ab.poison,pdps:ab.pdps,
           owner:f,life:ab.life,col:ab.col,homing:ab.homing||0,pierce:ab.pierce,knock:ab.knock||60,arrow:ab.arrow,rock:ab.rock,fx:ab.fx,done:false})}
       snd(ab.rock?120:ab.arrow?700:500,.09,ab.homing?'sine':'triangle',.045,ab.rock?.6:1.6);break;}
     case 'dash':{const dir=ab.back?-1:1,sp=760;f.dashT=ab.dist/sp;f.dvx=c*sp*dir;f.dvy=s*sp*dir;f.dashDmg=ab.dmg;f.dashHit=false;snd(300,.15,'sawtooth',.04,2);break;}
@@ -634,7 +674,7 @@ function use(f,i){
       if(inCone(f,e,ab.range,ab.arc))hit(e,ab.dmg,f,{knock:ab.knock,ang:a});
       for(const p of D.proj)if(p.owner!==f&&Math.hypot(p.x-f.x,p.y-f.y)<ab.range+f.r+20&&ad(Math.atan2(p.y-f.y,p.x-f.x),a)<ab.arc/2+.2){p.done=true;burst(p.x,p.y,'#cfe8ff',5,100)}
       break;
-    case 'breath':f.breathT=ab.dur;f.breathAb=ab;snd(90,ab.dur,'sawtooth',.03,1.8);break;
+    case 'breath':f.breathT=ab.dur;f.breathAb=ab;f.breathMul=mul;snd(90,ab.dur,'sawtooth',.03,1.8);break;
     case 'trap':{
       const x=f.x-c*(f.r+14),y=f.y-s*(f.r+14);
       D.traps.push({x,y,owner:f,arm:.6,dmg:ab.dmg,root:ab.root});
@@ -649,6 +689,15 @@ function use(f,i){
         if(inArena(x,y,f.r)&&!inObs(x,y,f.r)&&Math.hypot(x-e.x,y-e.y)>f.r+e.r+2){
           burst(f.x,f.y,'#ffe680',16,140);D.fx.push({k:'bolt',x1:f.x,y1:f.y,x2:x,y2:y,t:0,dur:.35});f.x=x;f.y=y;burst(x,y,'#fff',16,140);break}}
       snd(1200,.15,'sine',.05,.3);break;
+    case 'dive':{ // Феникс: взмывает и падает на место удара — на врага, если он впереди и недалеко
+      let tx=f.x+c*ab.dist,ty=f.y+s*ab.dist;
+      if(!e.dead&&e.stealthT<=0&&dist(f,e)<ab.dist+60&&ad(Math.atan2(e.y-f.y,e.x-f.x),a)<.8){tx=e.x;ty=e.y}
+      tx=Math.max(AR.x0+f.r,Math.min(AR.x1-f.r,tx));ty=Math.max(AR.y0+f.r,Math.min(AR.y1-f.r,ty));
+      f.dive={x0:f.x,y0:f.y,x1:tx,y1:ty,t:0,dur:.55,ab};f.atkDur=f.atkT=.55;snd(500,.4,'sawtooth',.04,2);break}
+    case 'roots':
+      D.fx.push({k:'roots',x:f.x,y:f.y,r:ab.radius+f.r,t:0,dur:.9});snd(120,.4,'triangle',.06,.6);
+      if(!e.dead&&dist(f,e)<=ab.radius+f.r+e.r)hit(e,ab.dmg,f,{root:ab.root});
+      break;
     case 'stealth':f.stealthT=ab.dur;burst(f.x,f.y,'#b77cff',18,120);snd(300,.3,'sine',.04,.5);break;
   }
 }
@@ -659,21 +708,35 @@ function updFighter(f,dt){
   f.atkT=Math.max(0,f.atkT-dt);f.anim+=dt*(f.moving?1.6:1);const px0=f.x,py0=f.y;
   if(f.healT>0){f.hp=Math.min(f.max,f.hp+f.healRate*Math.min(dt,f.healT));if(Math.random()<.3)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y+f.r,vx:0,vy:-60,life:.6,max:.6,col:'#8f8',r:2.5})}
   if(D.pool&&dist(f,D.pool)<D.pool.r){f.hp=Math.min(f.max,f.hp+6*dt);if(Math.random()<.15)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y,vx:0,vy:-50,life:.5,max:.5,col:'#9ff',r:2})}
-  for(const k of ['blockT','stealthT','healT','rootT','flash','breathT','hasteT','shieldT','powerT'])f[k]=Math.max(0,f[k]-dt);
+  if(f.poisonT>0){hit(f,f.poisonDps*Math.min(dt,f.poisonT),{owner:f.poisonSrc},{tick:1});if(Math.random()<.25)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y+rnd(-f.r,f.r),vx:0,vy:-30,life:.5,max:.5,col:'#9ff04a',r:2.5});if(f.dead)return}
+  if(f.T.regen&&f.hp<f.max)f.hp=Math.min(f.max,f.hp+f.T.regen*dt);
+  for(const k of ['blockT','stealthT','healT','rootT','flash','breathT','hasteT','shieldT','powerT','poisonT','superArm','superCd'])f[k]=Math.max(0,f[k]-dt);
+  if(f.dive){const d=f.dive;d.t+=dt;const k=Math.min(1,d.t/d.dur);f.x=d.x0+(d.x1-d.x0)*k;f.y=d.y0+(d.y1-d.y0)*k;f.face=Math.atan2(d.y1-d.y0,d.x1-d.x0)||f.face;
+    if(Math.random()<.7)D.parts.push({x:f.x,y:f.y,vx:rnd(-30,30),vy:rnd(-30,30),life:.4,max:.4,col:'#ff9a2a',r:4,fire:1});
+    if(k>=1){f.dive=null;const ab=d.ab,e=enemyOf(f);boom(f.x,f.y,ab.radius*2.2);D.shake=10;snd(90,.4,'sawtooth',.08,.4);
+      if(!e.dead&&dist(f,e)<=ab.radius+e.r)hit(e,ab.dmg,f,{wave:1,knock:300});
+      D.fires.push({x:f.x,y:f.y,r:ab.radius,t:ab.burn,max:ab.burn,owner:f,dps:ab.dps})}
+    f.moving=false;return}
   // местность: болото и лава действуют только на наземных
   f.zone=f.ground&&f.dashT<=0?zoneAt(f.x,f.y):null;
   if(f.zone==='lava'){hit(f,LAVA_DPS*dt,null,{tick:1,lava:1});if(Math.random()<.5)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y+rnd(-5,5),vx:rnd(-20,20),vy:-80,life:.5,max:.5,col:Math.random()<.5?'#ff9a2a':'#ffd040',r:3,fire:1});if(f.dead)return}
   if(f.zone==='swamp'&&Math.random()<.08)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y+f.r*.5,vx:0,vy:0,life:.6,max:.6,col:'#9bbf6a',r:4});
   // порталы
-  for(const p of D.portals)if(p.cd<=0&&f.portT<=0&&Math.hypot(f.x-p.x,f.y-p.y)<p.r*.7){
-    const others=D.portals.filter(q=>q!==p);const q=others[Math.random()*others.length|0];
-    const heal=Math.round(f.max*PORTAL_HEAL);f.hp=Math.min(f.max,f.hp+heal);
-    burst(f.x,f.y,'#6ff',24,200);floatTxt(f.x,f.y-f.r-12,'+'+heal,'#7f7');
-    f.x=q.x+Math.cos(f.face)*(q.r+f.r+6);f.y=q.y+Math.sin(f.face)*(q.r+f.r+6);f.vx=f.vy=0;f.dashT=0;
-    burst(f.x,f.y,'#6ff',24,200);p.cd=q.cd=PORTAL_CD;f.portT=1;snd(500,.4,'sine',.06,2.5);break}
+  for(const p of D.portals)if(p.cd<=0&&p.charge>0&&f.hp<f.max&&Math.hypot(f.x-p.x,f.y-p.y)<p.r){
+    const h=Math.min(PORTAL_RATE*dt,p.charge,f.max-f.hp);f.hp+=h;p.charge-=h;f.portAcc=(f.portAcc||0)+h;
+    if(f.portAcc>=4){floatTxt(f.x,f.y-f.r-12,'+'+Math.round(f.portAcc),'#7f7');f.portAcc=0}
+    if(Math.random()<.3)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y+f.r*.5,vx:0,vy:-60,life:.6,max:.6,col:'#7ff',r:2.5});
+    if(p.charge<=0){p.cd=PORTAL_CD;burst(p.x,p.y,'#6ff',20,160);snd(300,.3,'sine',.05,.5)}
+    break}
   const k=CTRL[f.idx],ctl=D.phase==='fight',pd=padInput(f.idx);
   let mx=ctl?(held(k.r)?1:0)-(held(k.l)?1:0):0,my=ctl?(held(k.d)?1:0)-(held(k.u)?1:0):0;
   if(ctl&&!mx&&!my&&(pd.mx||pd.my)){mx=pd.mx;my=pd.my}
+  if(ctl){const hx=Math.abs(mx)>.5?Math.sign(mx):0; // комбо ←→←→ для супер-удара
+    if(hx&&hx!==f.lastHx){f.combo.push([hx,D.t]);if(f.combo.length>4)f.combo.shift();const q=f.combo;
+      if(q.length===4&&q[0][0]<0&&q[1][0]>0&&q[2][0]<0&&q[3][0]>0&&D.t-q[0][1]<1.6){f.combo=[];
+        if(f.superCd>0)floatTxt(f.x,f.y-f.r-30,'супер через '+Math.ceil(f.superCd)+' с','#bbb');
+        else{f.superArm=1.2;floatTxt(f.x,f.y-f.r-30,'СУПЕР! Бей!','#ffe04a');snd(1200,.15,'square',.04,1.5)}}}
+    f.lastHx=hx}
   if(f.dashT>0){
     const st=Math.min(dt,f.dashT);f.dashT-=dt;f.x+=f.dvx*st;f.y+=f.dvy*st;
     if(Math.random()<.8)D.parts.push({x:f.x,y:f.y,vx:0,vy:0,life:.25,max:.25,col:f.col,r:f.r*.5});
@@ -681,7 +744,7 @@ function updFighter(f,dt){
     if(!f.dashHit&&f.dashDmg>0&&!e.dead&&dist(f,e)<f.r+e.r+6){f.dashHit=true;hit(e,f.dashDmg,f,{dash:1,knock:320,ang:Math.atan2(f.dvy,f.dvx)});f.dashT=0}
   } else if(mx||my){
     f.face=Math.atan2(my,mx);
-    if(f.rootT<=0){const l=Math.hypot(mx,my),sp=f.spd*(f.hasteT>0?1.6:1)*(f.stealthT>0?1.7:1)*(f.breathT>0?.45:1)*(f.blockT>0?.5:1)*(f.zone==='swamp'?SWAMP_SLOW:1);
+    if(f.rootT<=0){const l=Math.hypot(mx,my),sp=f.spd*(f.hasteT>0?1.6:1)*(f.stealthT>0?1.7:1)*(f.breathT>0?.45:1)*(f.blockT>0?.5:1)*(f.zone==='swamp'&&!f.T.swamp?SWAMP_SLOW:1);
       f.x+=mx/l*sp*dt;f.y+=my/l*sp*dt;f.bob+=dt*12;}
   }
   f.x+=f.vx*dt;f.y+=f.vy*dt;const fr=Math.pow(.003,dt);f.vx*=fr;f.vy*=fr;
@@ -694,7 +757,7 @@ function updFighter(f,dt){
     const ab=f.breathAb,e=enemyOf(f);
     for(let i=0;i<3;i++){const aa=f.face+rnd(-ab.arc/2,ab.arc/2),sp=rnd(250,380);
       D.parts.push({x:f.x+Math.cos(f.face)*f.r,y:f.y+Math.sin(f.face)*f.r,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,life:(ab.range+f.r)/sp,max:(ab.range+f.r)/sp,col:Math.random()<.5?'#ffb030':'#ff5a20',r:rnd(3,6),fire:1,flame:1})}
-    if(!e.dead&&inCone(f,e,ab.range,ab.arc))hit(e,ab.dps*dt,f,{tick:1});
+    if(!e.dead&&inCone(f,e,ab.range,ab.arc))hit(e,ab.dps*dt*(f.breathMul||1),f,{tick:1});
   }
   if(ctl){if(held(k.a)||pd.a)use(f,0);if(held(k.b)||pd.b)use(f,1)}
   const st=Math.hypot(f.x-px0,f.y-py0);f.moving=st>dt*20;f.walk+=st;
@@ -707,7 +770,7 @@ function update(dt){
   if(D.phase==='count'){D.cdT-=dt;if(D.cdT<=0){D.phase='fight';snd(880,.2,'square',.05)}return}
   if(D.phase==='end'){D.endT-=dt;dt*=.35;if(D.endT<=0){D.phase='done';showDuelResult();return}}
   if(D.phase==='fight'){D.t+=dt;if(D.t>=D.limit){D.timeout=true;D.phase='end';D.endT=1.2;snd(300,.4,'triangle',.05,.5)}}
-  for(const p of D.portals){p.cd=Math.max(0,p.cd-dt);p.rot+=dt*(p.cd>0?.3:1.4)}
+  for(const p of D.portals){if(p.cd>0){p.cd-=dt;if(p.cd<=0){p.cd=0;p.charge=PORTAL_CAP;snd(700,.25,'sine',.04,1.5)}}p.rot+=dt*(p.cd>0?.3:1.4)}
   if(D.phase==='fight'){D.bonusT-=dt;if(D.bonusT<=0){spawnBonus();D.bonusT=rnd(7,12)}}
   for(const b of D.bonus){b.t+=dt;if(b.t>b.life){b.gone=true;continue}
     for(const f of D.f)if(!f.dead&&Math.hypot(f.x-b.x,f.y-b.y)<f.r+26){takeBonus(f,b.k);b.gone=true;burst(b.x,b.y,BONUS[b.k].col,26,220);break}}
@@ -734,7 +797,7 @@ function update(dt){
         const sp=Math.hypot(p.vx,p.vy),o=p.owner,an=Math.atan2(o.y-p.y,o.x-p.x);
         p.vx=Math.cos(an)*sp;p.vy=Math.sin(an)*sp;p.owner=e;p.life=Math.max(p.life,1.2);burst(p.x,p.y,'#9df',8,150);snd(1000,.08,'triangle',.05);continue}
       if(p.pierce){if(p.hitDone)continue;p.hitDone=true}else p.done=true;
-      hit(e,p.dmg,p,{knock:p.knock,ang:Math.atan2(p.vy,p.vx)});if(p.fx==='fire'||p.fx==='skull'||p.rock)boom(p.x,p.y,p.r*7);
+      hit(e,p.dmg,p,{knock:p.knock,ang:Math.atan2(p.vy,p.vx)});if(p.poison&&!e.dead){e.poisonT=p.poison;e.poisonDps=p.pdps;e.poisonSrc=p.owner}if(p.fx==='fire'||p.fx==='skull'||p.rock)boom(p.x,p.y,p.r*7);
     }
   }
   for(let i=0;i<D.proj.length;i++)for(let j=i+1;j<D.proj.length;j++){
@@ -745,6 +808,10 @@ function update(dt){
   for(const t of D.traps){t.arm-=dt;const e=enemyOf(t.owner);
     if(t.arm<=0&&!e.dead&&e.dashT<=0&&Math.hypot(t.x-e.x,t.y-e.y)<e.r+8){t.gone=true;hit(e,t.dmg,t,{root:t.root});D.fx.push({k:'ring',x:t.x,y:t.y,r:26,t:0,dur:.25,col:'#d8d0c2'})}}
   D.traps=D.traps.filter(t=>!t.gone);
+  for(const fi of D.fires){fi.t-=dt;const e=enemyOf(fi.owner);
+    if(!e.dead&&!e.dive&&Math.hypot(e.x-fi.x,e.y-fi.y)<fi.r+e.r*.5)hit(e,fi.dps*dt,fi,{tick:1});
+    if(Math.random()<.6){const a=rnd(0,7),d=Math.sqrt(Math.random())*fi.r;D.parts.push({x:fi.x+Math.cos(a)*d,y:fi.y+Math.sin(a)*d,vx:0,vy:-60,life:.5,max:.5,col:'#ff8a2a',r:4,fire:1,flame:1})}}
+  D.fires=D.fires.filter(fi=>fi.t>0);
   for(const t of D.totems){
     if(t.shots<=0){t.fade+=dt;continue}
     t.t-=dt;const e=enemyOf(t.owner);
@@ -765,9 +832,9 @@ function showDuelResult(){
   if(D.timeout&&!fa.dead&&!fd.dead)h=`<h2>Время вышло</h2><p>${uName(D.att)} отступает на прежнюю клетку.</p>`;
   else if(fa.dead&&fd.dead)h=`<h2>Оба пали!</h2><p>${uName(D.att)} и ${uName(D.def)} сразили друг друга.</p>`;
   else{const w=fa.dead?fd:fa,l=fa.dead?fa:fd;
-    const up=(w.u.lvl||1)<MAXLVL;
+    const up=canLvl(w.u)&&(w.u.lvl||1)<MAXLVL;
     h=`<img class="g" style="width:110px;height:110px" src="${uImg(w.u.t)}" alt=""><h2>${uName(w.u)} побеждает</h2><p>${uName(l.u)} выбывает из битвы. Осталось здоровья: <b>${Math.max(1,Math.ceil(w.hp))}</b> / ${w.max}</p>
-      ${up?`<p class="lvlup">★ Новый уровень: <b>${(w.u.lvl||1)+1}</b> — здоровье, сила, скорость и умения растут</p>`:`<p class="mut">Высший уровень ★${MAXLVL} уже достигнут</p>`}`}
+      ${up?`<p class="lvlup">★ Новый уровень: <b>${(w.u.lvl||1)+1}</b> — здоровье, сила, скорость и умения растут</p>`:canLvl(w.u)?`<p class="mut">Высший уровень ★${MAXLVL} уже достигнут</p>`:''}`}
   modal(`<div class="center">${h}<button class="pri" data-pri onclick="finishDuel()">К доске (Пробел)</button></div>`);
 }
 function finishDuel(){
@@ -782,7 +849,7 @@ function finishDuel(){
   if(D.timeout&&!fa.dead&&!fd.dead)addLog(`⚔ ${uName(att)} и ${uName(def)}: ничья по времени`);
   else if(fa.dead&&fd.dead)addLog(`⚔ ${uName(att)} и ${uName(def)} пали оба`);
   else addLog(`⚔ ${uName(fa.dead?def:att)} одолевает: ${uName(fa.dead?att:def)} выбывает`);
-  if(winner&&(winner.lvl||1)<MAXLVL){const old=maxHp(winner);winner.lvl=(winner.lvl||1)+1;winner.hp=Math.min(maxHp(winner),winner.hp+maxHp(winner)-old);
+  if(winner&&canLvl(winner)&&(winner.lvl||1)<MAXLVL){const old=maxHp(winner);winner.lvl=(winner.lvl||1)+1;winner.hp=Math.min(maxHp(winner),winner.hp+maxHp(winner)-old);
     addLog(`★ ${uName(winner)} получает ${winner.lvl}-й уровень`);snd(660,.15,'triangle',.05);setTimeout(()=>snd(990,.25,'triangle',.05),140)}
   const advance=fd.dead&&!fa.dead;
   D=null;document.getElementById('duel').classList.remove('on');keys.clear();touchReset();
@@ -824,10 +891,12 @@ function drawWorld(v){
     const on=p.cd<=0;
     if(on){ctx.globalAlpha=.35+.15*Math.sin(performance.now()/250);ctx.fillStyle='#6ff';ctx.beginPath();ctx.arc(p.x,p.y,p.r*1.25,0,7);ctx.fill();ctx.globalAlpha=1}
     sprite(IMG.p_portal,p.x,p.y,p.r*2.3,p.rot,on?1:.45);
-    if(!on){ctx.font='bold 16px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#cff';ctx.fillText(Math.ceil(p.cd),p.x,p.y)}}
+    if(on){ctx.strokeStyle='#7fffd0';ctx.lineWidth=5;ctx.beginPath();ctx.arc(p.x,p.y,p.r*1.15,-Math.PI/2,-Math.PI/2+Math.PI*2*p.charge/PORTAL_CAP);ctx.stroke()}
+    if(!on){ctx.font='bold 22px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=4;ctx.strokeStyle='#000';ctx.strokeText(Math.ceil(p.cd),p.x,p.y);ctx.fillStyle='#cff';ctx.fillText(Math.ceil(p.cd),p.x,p.y)}}
   // капканы
   for(const t of D.traps){if(!vis(t.x,t.y,20))continue;
     if(!sprite(IMG.p_trap,t.x,t.y,30,0,t.arm>0?.9:.55)){ctx.strokeStyle='#cfc6b4';ctx.lineWidth=2;ctx.beginPath();ctx.arc(t.x,t.y,10,0,7);ctx.stroke()}}
+  for(const fi of D.fires){if(!vis(fi.x,fi.y,fi.r))continue;sprite(IMG.fx_burn,fi.x,fi.y,fi.r*2.3,0,Math.min(1,fi.t)*(.8+.2*Math.sin(performance.now()/90)))}
   // бонусы
   for(const b of D.bonus){if(!vis(b.x,b.y,40))continue;if(b.life-b.t<3&&Math.floor(b.t*6)%2)continue;
     const bob=Math.sin(b.t*3)*4;ctx.globalAlpha=.35+.2*Math.sin(b.t*5);ctx.fillStyle=BONUS[b.k].col;ctx.beginPath();ctx.arc(b.x,b.y,30,0,7);ctx.fill();ctx.globalAlpha=1;
@@ -856,6 +925,7 @@ function drawWorld(v){
     else if(x.k==='boom'){if(ready(IMG.fx_boom)){const sz=x.r*(.5+.7*k);ctx.globalAlpha=1-k*k;ctx.drawImage(IMG.fx_boom,x.x-sz/2,x.y-sz/2,sz,sz)}}
     else if(x.k==='bolt'){if(ready(IMG.fx_bolt)){const L=Math.hypot(x.x2-x.x1,x.y2-x.y1),a=Math.atan2(x.y2-x.y1,x.x2-x.x1),w=Math.min(L*.5,90);
       ctx.save();ctx.translate(x.x2,x.y2);ctx.rotate(a+Math.PI/2);ctx.globalAlpha=(1-k)*(Math.random()<.25?.45:1);ctx.drawImage(IMG.fx_bolt,-w/2,0,w,L);ctx.restore()}}
+    else if(x.k==='roots'){sprite(IMG.fx_roots,x.x,x.y,x.r*2*(.6+.4*Math.min(1,k*3)),0,1-k*k)}
     else if(x.k==='cone'){ctx.fillStyle=x.col;ctx.globalAlpha=(1-k)*.35;ctx.beginPath();ctx.moveTo(x.f.x,x.f.y);ctx.arc(x.f.x,x.f.y,x.range*(.4+.6*k),x.a-x.arc/2,x.a+x.arc/2);ctx.closePath();ctx.fill()}
     ctx.globalAlpha=1}
   const flame=ready(IMG.fx_fire);
@@ -904,7 +974,14 @@ function drawFighter(f,isOwn){
   else if(!f.dead&&!f.ground)fr=['','_w1','','_w2'][Math.floor(f.anim*9)%4];
   else if(f.moving)fr=['_w1','','_w2',''][Math.floor(f.walk/(f.r*1.3))%4];
   const lx=f.x+Math.cos(f.face)*lunge,ly=y+Math.sin(f.face)*lunge;
-  if(!sprite(IMG['u_'+f.u.t+fr]||IMG['u_'+f.u.t],lx,ly,S*sink*(SPRK[f.u.t]||1)*(lunge?1.05:1),f.face+Math.PI/2)){
+  if(f.superArm>0){ctx.strokeStyle='#ffe04a';ctx.lineWidth=4;ctx.globalAlpha=al*(.5+.5*Math.sin(performance.now()/60));ctx.beginPath();ctx.arc(f.x,y,f.r+20,0,7);ctx.stroke();ctx.globalAlpha=al}
+  if(f.poisonT>0){ctx.fillStyle='#9ff04a33';ctx.beginPath();ctx.arc(f.x,y,f.r+6,0,7);ctx.fill()}
+  let lift=1;
+  if(f.dive){const k=Math.min(1,f.dive.t/f.dive.dur);lift=1+.7*Math.sin(Math.PI*k);
+    ctx.strokeStyle='#ff6a2a';ctx.lineWidth=3;ctx.setLineDash([6,5]);ctx.beginPath();ctx.arc(f.dive.x1,f.dive.y1,f.dive.ab.radius,0,7);ctx.stroke();ctx.setLineDash([])}
+  const fk='u_'+f.skin+fr,fb='u_'+f.skin,fimg=f.shade?(darkImg(fk)||darkImg(fb)):(IMG[fk]||IMG[fb]);
+  if(f.shade&&Math.random()<.3&&D)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y+rnd(-f.r,f.r),vx:0,vy:-25,life:.6,max:.6,col:'#7a3cc0',r:4});
+  if(!sprite(fimg,lx,ly,S*sink*lift*(SPRK[f.skin]||1)*(lunge?1.05:1),f.face+Math.PI/2)){
     ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(f.x,y,f.r,0,7);ctx.fill();
     ctx.font=`${Math.round(f.r*1.35)}px ${EMOJI}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(f.T.g,f.x,y+1)}
   if(f.flash>0){ctx.globalAlpha=f.flash/.12*.6;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(f.x,y,f.r*1.1,0,7);ctx.fill()}
@@ -918,7 +995,7 @@ function drawHud(f){
   ctx.fillStyle='#120c08ee';ctx.fillRect(x0,0,HALF,HUD);
   ctx.fillStyle=f.col;ctx.fillRect(x0,HUD-2,HALF,2);
   const ix=f.idx?x0+48:x0+12;
-  if(!sprite(IMG['u_'+f.u.t],ix+24,33,54,0)){ctx.font=`26px ${EMOJI}`;ctx.fillText(f.T.g,ix+10,30)}
+  if(!sprite(f.shade?darkImg('u_'+f.skin):IMG['u_'+f.skin],ix+24,33,54,0)){ctx.font=`26px ${EMOJI}`;ctx.fillText(f.T.g,ix+10,30)}
   ctx.textBaseline='middle';ctx.textAlign='left';ctx.font='bold 17px Georgia,serif';ctx.fillStyle=f.col;
   ctx.fillText(`${f.T.name}${f.lvl>1?' ★'+f.lvl:''}  ${Math.ceil(f.hp)}/${f.max}`,ix+56,15);
   const bx=ix+56,by=26,bw=HALF-56-24-48;ctx.fillStyle='#000';rr(bx,by,bw,10,5);ctx.fill();
@@ -934,6 +1011,10 @@ function drawHud(f){
   }
   // предупреждение о местности
   const z=f.zone==='lava'?['ЛАВА!','#ff7a2a']:f.zone==='swamp'?['болото','#9bbf6a']:null;
+  { // супер-удар: подсказка и перезарядка
+    const t=f.superArm>0?'⚡ СУПЕР — бей!':f.superCd>0?`⚡ супер через ${Math.ceil(f.superCd)} с`:'⚡ супер: ←→←→ + удар';
+    ctx.font=(f.superArm>0?'bold 16px':'13px')+' Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='#000';
+    ctx.strokeText(t,x0+HALF/2,H-18);ctx.fillStyle=f.superArm>0?'#ffe04a':f.superCd>0?'#aaa':'#fff3c0';ctx.fillText(t,x0+HALF/2,H-18)}
   const bf=[['speed',f.hasteT],['shield',f.shieldT],['power',f.powerT]].filter(b=>b[1]>0);
   bf.forEach(([k,t],j)=>{const bx=x0+HALF/2+(j-(bf.length-1)/2)*48,by=HUD+58;sprite(IMG['bn_'+k],bx,by,40,0);
     ctx.font='bold 13px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText(Math.ceil(t),bx,by+24);ctx.fillStyle='#fff';ctx.fillText(Math.ceil(t),bx,by+24)});
@@ -970,11 +1051,11 @@ function pollPads(){
 const padRep=[{},{}];
 function moveCur(dr,dc){
   if(!G.cur||!G.padUsed){G.padUsed=true;G.cur=G.cur||homeCur()}
-  else{G.cur.r=Math.max(0,Math.min(N-1,G.cur.r+dr));G.cur.c=Math.max(0,Math.min(N-1,G.cur.c+dc))}
+  else{G.cur.r=Math.max(0,Math.min(NR-1,G.cur.r+dr));G.cur.c=Math.max(0,Math.min(NC-1,G.cur.c+dc))}
   G.curTurn=G.turn;snd(700,.03,'triangle',.02);curInfo();
 }
 function homeCur(){ // своя фигура, ближайшая к прежней рамке (или к центру)
-  const o=G.cur||{r:3.5,c:3.5};let best=null,bd=1e9;
+  const o=G.cur||{r:(NR-1)/2,c:(NC-1)/2};let best=null,bd=1e9;
   for(const u of G.units)if(u.side===G.turn){const d=Math.hypot(u.r-o.r,u.c-o.c);if(d<bd){bd=d;best=u}}
   return best?{r:best.r,c:best.c}:{r:3,c:3};
 }
