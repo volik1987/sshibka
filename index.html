@@ -84,6 +84,9 @@ body.narrow #side>.box{width:min(100%,560px)}
 .btns{display:flex;gap:8px;flex-wrap:wrap}
 button{font:inherit;color:var(--txt);background:linear-gradient(#4a3420,#2c1d10);border:1px solid #8a6a3e;border-radius:8px;padding:7px 14px;cursor:pointer}
 button:hover{filter:brightness(1.2)}
+button.opt{display:flex;flex-direction:column;align-items:center;min-width:150px;opacity:.75}button.opt.on{opacity:1;border-color:#f2d08a;box-shadow:0 0 0 2px #f2d08a66,0 0 18px #f2c14e44;background:linear-gradient(#5a3d1c,#2e1d0c)}
+button.opt small{font-size:12px;font-weight:400;color:#cbb790;margin-top:2px}
+.menu{display:flex;flex-direction:column;gap:12px;margin:10px 0}.mrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center}.mrow>b{width:100%;text-align:center;color:#d9b46a;font-size:14px;letter-spacing:1px}
 button.pri{background:linear-gradient(#c8963f,#7c5419);border-color:#f2d08a;color:#fff8e6;font-weight:700;text-shadow:0 1px 2px #000}
 #duel{position:fixed;inset:0;background:#050403;display:none;align-items:center;justify-content:center;z-index:5}
 #duel.on{display:flex}
@@ -316,7 +319,16 @@ function toggleSnd(){muted=!muted;document.getElementById('sndBtn').textContent=
 // ---------- Состояние доски ----------
 let G=null;
 function rnd(a,b){return a+Math.random()*(b-a)}
+// режим: на двоих (pvp) или против компьютера (cpu); human — сторона игрока, diff — сложность
+const DIFF={easy:{n:'Лёгкий',d:'компьютер часто ошибается и бьёт слабее',dmg:.7,spd:.88,react:.5,skill:.35,noise:30,risk:.2},
+            normal:{n:'Средний',d:'честная борьба',dmg:1,spd:1,react:.28,skill:.75,noise:8,risk:.7},
+            hard:{n:'Сложный',d:'компьютер хитрее и бьёт сильнее',dmg:1.15,spd:1.05,react:.12,skill:1,noise:1.5,risk:1}};
+let OPTS={mode:'pvp',human:'dawn',diff:'normal'};
+try{Object.assign(OPTS,JSON.parse(localStorage.getItem('sshibka-opts'))||{})}catch(e){}
+const isCpu=side=>!!G&&G.mode==='cpu'&&side!==G.human;
 function newGame(){
+  try{localStorage.setItem('sshibka-opts',JSON.stringify(OPTS))}catch(e){}
+  if(G&&G.cpuT){clearTimeout(G.cpuT)}
   const terr=[...Array(NR)].map(()=>Array(NC).fill('plain'));
   WELLS.forEach(([r,c])=>terr[r][c]='well');
   const put=(kind,n)=>{let k=0,tries=0;while(k<n&&tries++<400){const r=2+(Math.random()*4|0),c=Math.random()*NC|0;
@@ -331,12 +343,12 @@ function newGame(){
     units.push({id:id++,t:BACK.dawn[c],side:'dawn',r:NR-1,c});
   }
   units.forEach(u=>{u.hp=TYPES[u.t].hp;u.lvl=1});
-  G={terr,units,turn:'dawn',log:[],sel:null,over:null,last:null,moveNo:1};
-  addLog('Начало битвы. Первым ходит <span class="dawnc">Орден Зари</span>.');
+  G={terr,units,turn:'dawn',log:[],sel:null,over:null,last:null,moveNo:1,mode:OPTS.mode,human:OPTS.human,diff:OPTS.diff};
+  addLog('Начало битвы. Первым ходит <span class="dawnc">Орден Зари</span>.'+(G.mode==='cpu'?` Вы играете за ${sideHtml(G.human)}, компьютер — ${DIFF[G.diff].n.toLowerCase()} уровень.`:''));
   save();render();
 }
-function save(){try{const {terr,units,turn,log,over,last,moveNo}=G;localStorage.setItem(SAVE,JSON.stringify({terr,units,turn,log,over,last,moveNo}))}catch(e){}}
-function load(){try{const s=JSON.parse(localStorage.getItem(SAVE));if(s&&s.units&&!s.over){s.units.forEach(u=>u.lvl=u.lvl||1);G={...s,sel:null};return true}}catch(e){}return false}
+function save(){try{const {terr,units,turn,log,over,last,moveNo,mode,human,diff}=G;localStorage.setItem(SAVE,JSON.stringify({terr,units,turn,log,over,last,moveNo,mode,human,diff}))}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem(SAVE));if(s&&s.units&&!s.over){s.units.forEach(u=>u.lvl=u.lvl||1);G={mode:'pvp',human:'dawn',diff:'normal',...s,sel:null};return true}}catch(e){}return false}
 function addLog(h){G.log.unshift(h);G.log.length=Math.min(G.log.length,60)}
 const unitAt=(r,c)=>G.units.find(u=>u.r===r&&u.c===c);
 const inB=(r,c)=>r>=0&&c>=0&&r<NR&&c<NC;
@@ -431,7 +443,8 @@ function render(){
   boardEl.innerHTML=h;
   const tEl=document.getElementById('turn');
   tEl.className=G.turn;
-  tEl.textContent=G.over?'Битва окончена':`Ход ${G.moveNo}: ${SIDES[G.turn].name}`;
+  tEl.textContent=G.over?'Битва окончена':`Ход ${G.moveNo}: ${SIDES[G.turn].name}${isCpu(G.turn)?' 🤖 думает…':G.mode==='cpu'?' (вы)':''}`;
+  cpuMaybe();
   document.getElementById('log').innerHTML=G.log.map(x=>`<div>${x}</div>`).join('');
   showInfo(hoverU||G.sel);
 }
@@ -460,7 +473,7 @@ boardEl.addEventListener('click',e=>{
   const cell=e.target.closest('.cell');if(!cell)return;cellAction(+cell.dataset.r,+cell.dataset.c);
 });
 function cellAction(r,c){
-  if(G.over||D||G.busy)return;
+  if(G.over||D||G.busy||isCpu(G.turn))return;
   const u=unitAt(r,c);
   if(G.sel){
     const m=movesOf(G.sel).find(m=>m.r===r&&m.c===c);
@@ -476,6 +489,7 @@ function doMove(u,m){
   if(!m.atk){
     animateMove(u,m.path,{},()=>{
       G.last=[[u.r,u.c],[m.r,m.c]];
+      u.prev=[u.r,u.c];G.quiet=(G.quiet||0)+1;
       u.r=m.r;u.c=m.c;
       addLog(`${uName(u)} → ${'abcdefghijklmnop'[m.c]}${NR-m.r}${G.terr[m.r][m.c]==='well'?' (Источник)':''}`);
       endTurn();
@@ -506,16 +520,73 @@ function endTurn(){
 }
 function showOver(){
   const w=G.over;snd(523,.2,'triangle',.06);setTimeout(()=>snd(784,.35,'triangle',.06),180);
-  modal(`<div class="center">${w.winner?`<img class="g" style="width:120px;height:120px" src="${uImg(w.winner==='dawn'?'svetoch':'vladyka')}">`:'<div style="font-size:60px">⚖️</div>'}
-    <h2>${w.winner?'Победа: '+sideHtml(w.winner):'Ничья'}</h2><p>${w.why}</p>
+  modal(`<div class="center">${w.winner?`<img class="g" style="width:120px;height:120px" src="${uImg(LEADER[w.winner])}">`:'<div style="font-size:60px">⚖️</div>'}
+    <h2>${w.winner?(G.mode==='cpu'?(w.winner===G.human?'Вы победили! ':'Победил компьютер. '):'')+'Победа: '+sideHtml(w.winner):'Ничья'}</h2><p>${w.why}</p>
     <div class="btns" style="justify-content:center"><button class="pri" data-pri onclick="newGame();closeModal()">Новая игра</button><button onclick="closeModal()">Посмотреть доску</button></div></div>`);
+}
+
+// ---------- Компьютер на доске ----------
+function cpuMaybe(){if(G&&!G.over&&!D&&!G.busy&&isCpu(G.turn)&&!G.cpuT)G.cpuT=setTimeout(cpuMove,650)}
+function cpuMove(){
+  G.cpuT=null;if(!G||G.over||D||!isCpu(G.turn))return;
+  if(G.busy||ovl.classList.contains('on')){G.cpuT=setTimeout(cpuMove,400);return}
+  const pick=aiPick(G.turn,DIFF[G.diff]);if(!pick){endTurn();return}
+  G.sel=pick.u;render();snd(520,.05,'triangle',.04);
+  setTimeout(()=>{if(!G||G.over||D)return;G.sel=null;doMove(pick.u,pick.m)},500);
+}
+// сила бойца: здоровье × урон в секунду (с учётом уровня и родной земли)
+function offense(T){let o=0;for(const a of T.ab)o+=(a.dmg||0)*(a.count||1)/(a.cd||1)+(a.dps||0)*.4+(a.k==='heal'?(a.amt||0)/(a.cd||1)*.5:0);return Math.max(4,o)}
+function power(u,ter,foe){const T=TYPES[u.t].mimic&&foe?TYPES[foe.t]:TYPES[u.t],home=T.home===ter;
+  let hp=u.hp/(home?HOMEK.def:1),off=offense(T)*lvlK(u).dmg*(home?HOMEK.dmg:1);
+  if(ter==='rock'&&T.mv[0]==='ground'&&!T.lava)hp*=.9; // на скалах больше лавы
+  return hp*off}
+const winP=(a,b,ter,k=1.3)=>{const A=Math.pow(power(a,ter,b),k*.5),B=Math.pow(power(b,ter,a),k*.5);return A/(A+B)};
+const unitVal=u=>Math.sqrt(maxHp(u)*offense(TYPES[u.t]))*(TYPES[u.t].leader?1.7:1)*(.6+.4*u.hp/maxHp(u));
+function aiPick(side,P){
+  const mine=G.units.filter(u=>u.side===side),foes=G.units.filter(u=>u.side!==side);
+  // какие клетки враги могут атаковать на следующем ходу (приближённо)
+  const reach=new Map();
+  for(const e of foes)for(const m of movesOf(e)){const k=m.r*N+m.c;if(!reach.has(k))reach.set(k,[]);reach.get(k).push(e)}
+  const risk=(u,r,c)=>{const es=reach.get(r*N+c);if(!es)return 0;let w=0;
+    for(const e of es)w=Math.max(w,winP(e,{...u,r,c},G.terr[r][c])*unitVal(u));return w};
+  // долго нет стычек — компьютер смелеет (иначе обе стороны топчутся на месте)
+  const q=Math.min(1,(G.quiet||0)/16),rk=P.risk*(1-.8*q);
+  const cand=[];
+  for(const u of mine){const now=risk(u,u.r,u.c);
+    for(const m of movesOf(u)){let sc;
+      if(m.atk){const d=unitAt(m.r,m.c),ter=G.terr[m.r][m.c],p=winP(u,d,ter);
+        sc=p*unitVal(d)*1.1-(1-p)*unitVal(u)+(P.skill<.5?unitVal(d)*.4:0);
+        if(TYPES[d.t].leader)sc+=p*8;
+        sc+=q*unitVal(u)*.9;
+        sc-=risk(u,m.r,m.c)*rk*p*.5}
+      else{sc=(now-risk(u,m.r,m.c))*rk;if(u.prev&&u.prev[0]===m.r&&u.prev[1]===m.c)sc-=8;
+        // ближе к врагам, которых этот боец может одолеть
+        let best=1e9;for(const e of foes){const d=Math.max(Math.abs(e.r-m.r),Math.abs(e.c-m.c)),p=winP(u,e,G.terr[e.r][e.c]);best=Math.min(best,d*(1.6-p))}
+        let was=1e9;for(const e of foes){const d=Math.max(Math.abs(e.r-u.r),Math.abs(e.c-u.c)),p=winP(u,e,G.terr[e.r][e.c]);was=Math.min(was,d*(1.6-p))}
+        sc+=(was-best)*(2.2+q*4);
+        const miss=1-u.hp/maxHp(u);if(G.terr[m.r][m.c]==='well')sc+=miss*30;if(G.terr[u.r][u.c]==='well')sc-=miss*20;
+        if(TYPES[u.t].leader)sc-=3}
+      sc+=rnd(-P.noise,P.noise);cand.push({u,m,sc})}}
+  if(!cand.length)return null;
+  cand.sort((a,b)=>b.sc-a.sc);
+  if(P.skill<.5&&Math.random()<.25)return cand[Math.random()*Math.min(6,cand.length)|0];
+  return cand[0];
 }
 
 // ---------- Модальные окна ----------
 const ovl=document.getElementById('ovl'),ovc=document.getElementById('ovc');
 function modal(h){ovc.innerHTML=h;ovl.classList.add('on')}
 function closeModal(){ovl.classList.remove('on')}
-function askNew(){modal(`<h2>Начать заново?</h2><p>Текущая партия будет потеряна.</p><div class="btns"><button class="pri" data-pri onclick="closeModal();newGame()">Да, новая игра</button><button onclick="closeModal()">Отмена</button></div>`)}
+function askNew(){showMenu(G&&!G.over&&G.log.length>1)}
+function showMenu(warn){
+  const opt=(k,v,t,d)=>`<button class="opt${OPTS[k]===v?' on':''}" onclick="OPTS.${k}='${v}';showMenu(${!!warn})">${t}${d?`<small>${d}</small>`:''}</button>`;
+  modal(`<h2 class="center">Новая игра</h2>
+    <div class="menu"><div class="mrow"><b>Режим</b>${opt('mode','pvp','👥 На двоих','за одним экраном')}${opt('mode','cpu','🤖 С компьютером','один игрок')}</div>
+    ${OPTS.mode==='cpu'?`<div class="mrow"><b>Ваша сторона</b>${opt('human','dawn','☀️ Орден Зари','ходит первым')}${opt('human','ash','🔥 Клан Пепла','ходит вторым')}</div>
+    <div class="mrow"><b>Сложность</b>${Object.entries(DIFF).map(([k,d])=>opt('diff',k,d.n,d.d)).join('')}</div>`:''}</div>
+    ${warn?'<p class="center mut">Текущая партия будет потеряна.</p>':''}
+    <div class="btns" style="justify-content:center"><button class="pri" data-pri onclick="closeModal();newGame()">Начать (Пробел)</button>${G?'<button onclick="closeModal()">Отмена</button>':''}</div>`);
+}
 function showRules(){
   modal(`<h2>Правила «Сшибки»</h2>
   <p>Два игрока за одним компьютером: <span class="dawnc">Орден Зари</span> (снизу) против <span class="ashc">Клана Пепла</span> (сверху). Ходы по очереди, мышью или касанием.</p>
@@ -527,6 +598,7 @@ function showRules(){
     <li>У каждого бойца две способности: атака и особое умение. Поединок длится 90 с — если никто не пал, нападающий отступает.</li>
     <li><b>Бонусы</b> иногда появляются на арене — подберите, пробежав по ним: ${Object.values(BONUS).map(b=>`<b>${b.n}</b> — ${b.d}`).join('; ')}.</li>
     <li><b>Уровни</b> (только у пешек — Ратников, Лучниц, Пепельников и Гоблинов): пешка-победитель получает новый уровень (до ★${MAXLVL}): +15% здоровья, +12% урона, +5% скорости и −6% к перезарядке умений за каждый. Уровень виден звёздочкой на фигуре.</li>
+    <li><b>Режимы</b>: «Новая игра» → <b>на двоих</b> за одним экраном или <b>с компьютером</b>: выберите сторону и сложность (лёгкий, средний, сложный). С компьютером поединок показывается на весь экран, управлять можно любыми клавишами (WASD или стрелки), геймпадом или касаниями.</li>
     <li><b>Пешки</b>: у Зари — Ратники-мечники и Лучницы, у Пепла — Пепельники и Гоблины-лучники, через одного.</li>
     <li><b>Родная земля</b>: если арена совпадает с родной местностью бойца — он бьёт на 25% сильнее, бегает на 15% быстрее и получает на 15% меньше урона. ${Object.entries(HOME).map(([t,ts])=>`<b>${TER_NAME[t]}</b>: ${ts.map(x=>TYPES[x].name).join(', ')}`).join('; ')}.</li>
     <li><b>Бойцы</b>: Архангел (пламенный меч, небесный свет лечит его), Паладин (молот и освящение, лечит себя), Гном (бомбы и мины), Единорог (быстрый натиск), Ледяная чародейка (замедляет), Эльф (меч и лук), Энт (корни, сам лечится), Феникс (обрушивается с неба и поджигает землю), Светоч (огненные шары и вспышка), Грифон, Страж, Жрица; Демон (адский кнут и пекло), Некромант (крадёт жизнь), Минотавр (секира и таран), Паучиха (яд и паутина), Огненный элементаль (огненное кольцо, лава не страшна), Нага (яд, болото не мешает), Перевёртыш (становится тёмной копией противника), Владыка, Тролль, Шаман, Виверна, Гарпунщик.</li>
@@ -632,6 +704,9 @@ function startDuel(att,def){
   const ar=genArena(ter),[s0,s1]=ar.spawn,a=Math.atan2(s1.y-s0.y,s1.x-s0.x);
   D0ter=ter;D={att,def,ter,cell:{r:def.r,c:def.c},bonus:[],bonusT:3,fires:[],f:[mkFighter(dawnU,0,s0,a,ashU),mkFighter(ashU,1,s1,a+Math.PI,dawnU)],proj:[],fx:[],parts:[],floats:[],traps:[],totems:[],later:[],
      ...ar,t:0,limit:LIMIT,phase:'intro',cdT:0,endT:0,timeout:false,shake:0};
+  D.solo=G.mode==='cpu';
+  if(D.solo)for(const f of D.f)if(isCpu(f.side)){const P=DIFF[G.diff];f.ai={P,t:.3,side:Math.random()<.5?1:-1,dir:[0,0],a:false,b:false,stuck:0,stuckT:0,lx:f.x,ly:f.y};f.dmgK*=P.dmg;f.spd*=P.spd}
+  document.body.classList.toggle('solo',D.solo);document.querySelectorAll('.th').forEach(th=>th.style.display=D.solo&&D.f[+th.dataset.i].ai?'none':'');
   document.getElementById('duel').classList.add('on');fitCanvas();
   touchReset();document.querySelectorAll('.th').forEach(th=>{const f=D.f[+th.dataset.i];th.querySelectorAll('.tb').forEach(b=>b.querySelector('span').textContent=f.T.ab[b.dataset.k==='a'?0:1].n)});
   snd(196,.25,'sawtooth',.05,.5);
@@ -639,8 +714,8 @@ function startDuel(att,def){
     <div style="font-size:20px;font-weight:700">${f.shade?TYPES[f.u.t].name+' → '+f.T.name:f.T.name}${f.u===att?' <span class="mut">(нападает)</span>':''}</div>
     ${f.shade?'<div class="mut">Перевёртыш становится тёмной копией противника</div>':''}${f.T.note?`<div class="mut">${f.T.note}</div>`:''}${f.home?'<div style="color:#9f9">🏠 Родная земля: +25% урона, +15% скорости, −15% урона по нему</div>':''}
     <div>Здоровье ${Math.ceil(f.hp)} / ${f.max} · ${f.ground?'наземный':'летает'} · <b>ур. ${f.lvl}</b>${f.lvl>1?` <span class="mut">(${lvlTxt(f.u)})</span>`:''}</div>
-    ${f.T.ab.map((a,i)=>`<div style="margin-top:6px"><kbd>${i?k.kb:k.ka}</kbd> <b>${a.n}</b> <span class="mut">— ${a.d}</span></div>`).join('')}
-    <div class="keys">Движение: ${p?'стрелки · правая половина экрана':'<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · левая половина экрана'}</div></div>`};
+    ${f.T.ab.map((a,i)=>`<div style="margin-top:6px">${f.ai?'':D.solo?`<kbd>${i?'G':'F'}</kbd>/<kbd>${i?'/':'.'}</kbd>`:`<kbd>${i?k.kb:k.ka}</kbd>`} <b>${a.n}</b> <span class="mut">— ${a.d}</span></div>`).join('')}
+    <div class="keys">${f.ai?`🤖 Компьютер · ${DIFF[G.diff].n.toLowerCase()} уровень`:D.solo?'Движение: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> или стрелки, геймпад, на планшете — палец':`Движение: ${p?'стрелки · правая половина экрана':'<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · левая половина экрана'}`}</div></div>`};
   modal(`<h2 class="center">Поединок · арена: ${TER_NAME[ter]}</h2>
     <div class="vs">${card(D.f[0])}<div class="mid">⚔</div>${card(D.f[1])}</div>
     <p class="center mut">Арена в 16 экранов: ищите врага по стрелке у края и мини-карте. Болото замедляет, лава жжёт наземных, портал в центре понемногу лечит (раз в 30 с). Иногда появляются бонусы: <b>ускорение</b>, <b>жизнь</b>, <b>суперзащита</b> и <b>сила</b>.${ter==='well'?' В центре — целебный родник.':''}</p>
@@ -794,9 +869,8 @@ function updFighter(f,dt){
     if(Math.random()<.3)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y+f.r*.5,vx:0,vy:-60,life:.6,max:.6,col:'#7ff',r:2.5});
     if(p.charge<=0){p.cd=PORTAL_CD;burst(p.x,p.y,'#6ff',20,160);snd(300,.3,'sine',.05,.5)}
     break}
-  const k=CTRL[f.idx],ctl=D.phase==='fight',pd=padInput(f.idx);
-  let mx=ctl?(held(k.r)?1:0)-(held(k.l)?1:0):0,my=ctl?(held(k.d)?1:0)-(held(k.u)?1:0):0;
-  if(ctl&&!mx&&!my&&(pd.mx||pd.my)){mx=pd.mx;my=pd.my}
+  const ctl=D.phase==='fight',inp=!ctl?{mx:0,my:0,a:false,b:false}:f.ai?aiCtl(f,dt):readIn(D.solo?[0,1]:[f.idx]);
+  let mx=inp.mx,my=inp.my;
   if(f.dashT>0){
     const st=Math.min(dt,f.dashT);f.dashT-=dt;f.x+=f.dvx*st;f.y+=f.dvy*st;
     if(Math.random()<.8)D.parts.push({x:f.x,y:f.y,vx:0,vy:0,life:.25,max:.25,col:f.col,r:f.r*.5});
@@ -819,7 +893,7 @@ function updFighter(f,dt){
       D.parts.push({x:f.x+Math.cos(f.face)*f.r,y:f.y+Math.sin(f.face)*f.r,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,life:(ab.range+f.r)/sp,max:(ab.range+f.r)/sp,col:Math.random()<.5?'#ffb030':'#ff5a20',r:rnd(3,6),fire:1,flame:1})}
     if(!e.dead&&inCone(f,e,ab.range,ab.arc))hit(e,ab.dps*dt*(f.breathMul||1),f,{tick:1});
   }
-  if(ctl){const aN=held(k.a)||pd.a,bN=held(k.b)||pd.b,dir=mx<-.5?'l':mx>.5?'r':null;
+  if(ctl){const aN=inp.a,bN=inp.b,dir=mx<-.5?'l':mx>.5?'r':null;
     if(dir&&dir!==f.prevDir)f.seq.push([dir,D.t]);f.prevDir=dir;
     if(aN&&!f.prevA)f.seq.push(['a',D.t]);f.prevA=aN;
     if(f.seq.length>5)f.seq.splice(0,f.seq.length-5);const q=f.seq;
@@ -830,6 +904,77 @@ function updFighter(f,dt){
   if(f.powerT>0&&Math.random()<.35)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y+rnd(-f.r,f.r),vx:0,vy:-70,life:.45,max:.45,col:Math.random()<.5?'#ff7a3a':'#ffc04a',r:3,fire:1});
 }
 
+// ввод живого игрока: клавиши, геймпады и касания (в одиночной игре — оба набора)
+function readIn(ids){const r={mx:0,my:0,a:false,b:false};
+  for(const i of ids){const k=CTRL[i],pd=padInput(i);
+    const kx=(held(k.r)?1:0)-(held(k.l)?1:0),ky=(held(k.d)?1:0)-(held(k.u)?1:0);
+    if(!r.mx&&!r.my){if(kx||ky){r.mx=kx;r.my=ky}else if(pd.mx||pd.my){r.mx=pd.mx;r.my=pd.my}}
+    r.a=r.a||held(k.a)||pd.a;r.b=r.b||held(k.b)||pd.b}
+  return r}
+// ---------- Компьютер в поединке ----------
+function aiCtl(f,dt){
+  const A=f.ai,P=A.P,e=enemyOf(f);A.t-=dt;A.stuckT-=dt;
+  if(e.dead)return {mx:0,my:0,a:false,b:false};
+  // застрял — свернуть в сторону
+  const moved=Math.hypot(f.x-A.lx,f.y-A.ly);A.lx=f.x;A.ly=f.y;
+  if(A.want&&moved<f.spd*dt*.25&&f.rootT<=0&&f.dashT<=0){A.stuck+=dt;if(A.stuck>.35){A.stuck=0;A.side=-A.side;A.stuckT=.7;A.detour=rnd(1.1,1.8)*A.side}}else A.stuck=Math.max(0,A.stuck-dt);
+  if(A.t<=0){A.t=P.react*rnd(.7,1.3);aiThink(f,e,A)}
+  let [mx,my]=A.dir;
+  if(A.aimT>0){A.aimT-=dt;[mx,my]=A.aim}
+  else if(A.stuckT>0){const a=Math.atan2(my,mx)+A.detour;mx=Math.cos(a);my=Math.sin(a)}
+  else if(mx||my){ // обход препятствий и лавы
+    const a0=Math.atan2(my,mx),bad=a=>{const L=f.r+46,x=f.x+Math.cos(a)*L,y=f.y+Math.sin(a)*L;
+      return !!inObs(x,y,f.r*.8)||!inArena(x,y,f.r)||(f.ground&&!f.T.lava&&zoneIn(D.zones,x,y)==='lava')};
+    if(bad(a0))for(const d of [.5,1,1.5,2.1,2.7]){const a=a0+d*A.side;if(!bad(a)){mx=Math.cos(a);my=Math.sin(a);break}const b=a0-d*A.side;if(!bad(b)){mx=Math.cos(b);my=Math.sin(b);A.side=-A.side;break}}}
+  const r={mx,my,a:A.a,b:A.b};
+  if(A.a&&f.cd[0]>0)A.a=false;if(A.b&&f.cd[1]>0)A.b=false;
+  return r;
+}
+function aiThink(f,e,A){
+  const P=A.P,d=dist(f,e),toE=Math.atan2(e.y-f.y,e.x-f.x),T=f.T,a0=T.ab[0],a1=T.ab[1];
+  const ranged=a0.k==='shot',reach0=a0.k==='melee'?a0.range+f.r+e.r:a0.k==='breath'?(a0.range||120)+f.r:ranged?Math.min(560,a0.spd*(a0.life||1.5)*.8):90;
+  const hidden=e.stealthT>0&&d>140;
+  let tx=e.x,ty=e.y,goal='fight';
+  if(hidden){if(!A.wander||Math.random()<.2)A.wander={x:e.x+rnd(-300,300),y:e.y+rnd(-300,300)};tx=A.wander.x;ty=A.wander.y;goal='seek'}
+  // раненый — к целебному порталу (умнее на высокой сложности)
+  const p=D.portals[0];
+  if(P.skill>.5&&f.hp<f.max*.38&&p&&p.cd<=0&&p.charge>8&&d>220){tx=p.x;ty=p.y;goal='heal'}
+  // бонус поблизости
+  if(goal==='fight'&&P.skill>.5)for(const b of D.bonus){const bd=Math.hypot(b.x-f.x,b.y-f.y);if(bd<320&&bd<d){tx=b.x;ty=b.y;goal='bonus';break}}
+  let ang=Math.atan2(ty-f.y,tx-f.x),dir=[Math.cos(ang),Math.sin(ang)];
+  if(goal==='fight'){
+    const keep=ranged?Math.min(reach0*.7,330):0;
+    if(ranged&&d<keep*.6){const s=ang+Math.PI+A.side*.6;dir=[Math.cos(s),Math.sin(s)]}
+    else if(ranged&&d<keep*1.1){const s=ang+A.side*Math.PI/2;dir=[Math.cos(s),Math.sin(s)];if(Math.random()<.15)A.side=-A.side}
+    else if(!ranged&&d<reach0*.75)dir=[0,0];
+  }
+  if(goal==='heal'&&Math.hypot(tx-f.x,ty-f.y)<p.r*.6)dir=[0,0];
+  A.want=dir[0]||dir[1];
+  // удары: развернуться к врагу и нажать
+  A.a=A.b=false;const facing=ad(toE,f.face)<.5,skill=Math.random()<P.skill;
+  const want0=!hidden&&d<reach0&&(skill||Math.random()<.5);
+  const use1=(()=>{if(hidden||!a1)return false;
+    switch(a1.k){
+      case 'melee':return d<a1.range+f.r+e.r;
+      case 'shot':return d<Math.min(560,a1.spd*(a1.life||1.5)*.8);
+      case 'dash':return a1.back?d<130:d>110&&d<a1.dist+40;
+      case 'wave':case 'nova':case 'roots':return d<(a1.radius||100)+f.r+e.r-6||(a1.heal&&f.hp<f.max*.5&&d<300);
+      case 'gust':case 'breath':return d<(a1.range||120)+f.r+e.r;
+      case 'heal':return f.hp<f.max*.6;
+      case 'block':return D.proj.some(q=>q.owner!==f&&Math.hypot(q.x-f.x,q.y-f.y)<170)||(d<80&&e.atkT>0);
+      case 'stealth':return d<380&&Math.random()<.3;
+      case 'blink':return d>260&&d<700;
+      case 'dive':return d<(a1.dist||300)+60&&d>90;
+      case 'trap':return d<260&&Math.random()<.35;
+      case 'totem':return d<620;
+      default:return d<200}})()&&Math.random()<P.skill+.1;
+  const aimed=a1&&['melee','shot','dash','gust','breath','blink','dive'].includes(a1.k)&&!(a1.k==='dash'&&a1.back);
+  // прицел: на мгновение развернуться к врагу (стрелок потом снова отходит)
+  A.aimT=0;
+  if(want0||(use1&&aimed)){const err=(1-P.skill)*.35*rnd(-1,1);A.aim=[Math.cos(toE+err),Math.sin(toE+err)];A.aimT=a0.k==='melee'||!ranged?P.react:.1}
+  if(use1&&a1.k==='dash'&&a1.back){const s=toE+Math.PI;A.aim=[Math.cos(s),Math.sin(s)];A.aimT=.1}
+  A.a=want0;A.b=use1;A.dir=dir;
+}
 function update(dt){
   if(D.phase==='intro'||D.phase==='done')return;
   if(D.phase==='count'){D.cdT-=dt;if(D.cdT<=0){D.phase='fight';snd(880,.2,'square',.05)}return}
@@ -917,7 +1062,7 @@ function finishDuel(){
   else addLog(`⚔ ${uName(fa.dead?def:att)} одолевает: ${uName(fa.dead?att:def)} выбывает`);
   if(winner&&canLvl(winner)&&(winner.lvl||1)<MAXLVL){const old=maxHp(winner);winner.lvl=(winner.lvl||1)+1;winner.hp=Math.min(maxHp(winner),winner.hp+maxHp(winner)-old);
     addLog(`★ ${uName(winner)} получает ${winner.lvl}-й уровень`);snd(660,.15,'triangle',.05);setTimeout(()=>snd(990,.25,'triangle',.05),140)}
-  const advance=fd.dead&&!fa.dead;
+  const advance=fd.dead&&!fa.dead;G.quiet=0;
   D=null;document.getElementById('duel').classList.remove('on');keys.clear();touchReset();
   if(advance)animateMove(att,[from,[cell.r,cell.c]],{},()=>{att.r=cell.r;att.c=cell.c;endTurn()});
   else{render();endTurn()}
@@ -1072,22 +1217,25 @@ function drawHud(f){
     if(cdp>0){ctx.fillStyle='#000a';rr(ax,ay,w*cdp,18,4);ctx.fill()}
     else{ctx.strokeStyle=f.col;ctx.lineWidth=1;rr(ax,ay,w,18,4);ctx.stroke()}
     ctx.fillStyle=cdp>0?'#888':'#fff';ctx.font='12px Georgia,serif';ctx.textAlign='left';
-    ctx.fillText(`[${i?k.kb:k.ka}] ${ab.n}`,ax+6,ay+9.5);
+    ctx.fillText(f.ai?ab.n:`[${D.solo?(i?'G':'F'):i?k.kb:k.ka}] ${ab.n}`,ax+6,ay+9.5);
   }
-  // предупреждение о местности
+  // предупреждение о местности (в одиночной игре — только своё, по центру экрана)
+  if(D.solo&&f.ai)return;const wc=D.solo?W/2:x0+HALF/2,wl=D.solo?12:x0+12;
   const z=f.zone==='lava'?['ЛАВА!','#ff7a2a']:f.zone==='swamp'?['болото','#9bbf6a']:null;
   const bf=[['speed',f.hasteT],['shield',f.shieldT],['power',f.powerT]].filter(b=>b[1]>0);
-  bf.forEach(([k,t],j)=>{const bx=x0+HALF/2+(j-(bf.length-1)/2)*48,by=HUD+58;sprite(IMG['bn_'+k],bx,by,40,0);
+  bf.forEach(([k,t],j)=>{const bx=wc+(j-(bf.length-1)/2)*48,by=HUD+58;sprite(IMG['bn_'+k],bx,by,40,0);
     ctx.font='bold 13px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText(Math.ceil(t),bx,by+24);ctx.fillStyle='#fff';ctx.fillText(Math.ceil(t),bx,by+24)});
-  if(f.home){ctx.font='bold 13px Georgia,serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText('🏠 родная земля',x0+12,HUD+18);ctx.fillStyle='#9f9';ctx.fillText('🏠 родная земля',x0+12,HUD+18)}
-  if(z){ctx.font='bold 18px Georgia,serif';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText(z[0],x0+HALF/2,HUD+22);ctx.fillStyle=z[1];ctx.fillText(z[0],x0+HALF/2,HUD+22)}
+  if(f.home){ctx.font='bold 13px Georgia,serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText('🏠 родная земля',wl,HUD+18);ctx.fillStyle='#9f9';ctx.fillText('🏠 родная земля',wl,HUD+18)}
+  if(z){ctx.font='bold 18px Georgia,serif';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText(z[0],wc,HUD+22);ctx.fillStyle=z[1];ctx.fillText(z[0],wc,HUD+22)}
 }
 function draw(){
   ctx.save();ctx.clearRect(0,0,W,H);
-  for(const f of D.f)drawWorld({idx:f.idx,x:f.idx*HALF,y:HUD,w:HALF,h:H-HUD,cx:f.x,cy:f.y});
+  const me=D.solo&&D.f.find(f=>!f.ai);
+  if(me)drawWorld({idx:me.idx,x:0,y:HUD,w:W,h:H-HUD,cx:me.x,cy:me.y});
+  else for(const f of D.f)drawWorld({idx:f.idx,x:f.idx*HALF,y:HUD,w:HALF,h:H-HUD,cx:f.x,cy:f.y});
   for(const f of D.f)drawHud(f);
   // разделитель и таймер
-  ctx.fillStyle='#000';ctx.fillRect(HALF-3,0,6,H);ctx.fillStyle='#d9b46a';ctx.fillRect(HALF-1,0,2,H);
+  ctx.fillStyle='#000';ctx.fillRect(HALF-3,0,6,me?HUD:H);ctx.fillStyle='#d9b46a';ctx.fillRect(HALF-1,0,2,me?HUD:H);
   const tl=Math.max(0,Math.ceil(D.limit-D.t));
   ctx.fillStyle='#120c08';ctx.beginPath();ctx.arc(HALF,HUD/2,28,0,7);ctx.fill();ctx.strokeStyle='#d9b46a';ctx.lineWidth=2;ctx.stroke();
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 22px Georgia,serif';ctx.fillStyle=tl<=10?'#f66':'#fff';ctx.fillText(tl,HALF,HUD/2-4);
@@ -1126,8 +1274,8 @@ function curInfo(){
   if(G.sel&&hoverU&&hoverU.side!==G.sel.side&&movesOf(G.sel).some(m=>m.r===G.cur.r&&m.c===G.cur.c))showInfo(G.sel,hoverU);
 }
 function boardPad(){
-  if(!G||D||G.over||G.busy||ovl.classList.contains('on'))return;
-  const side=SIDES[G.turn].p,i=PADS[side]?side:PADS[1-side]?1-side:-1;if(i<0)return;
+  if(!G||D||G.over||G.busy||isCpu(G.turn)||ovl.classList.contains('on'))return;
+  const side=SIDES[G.turn].p,i=G.mode==='cpu'?(PADS[0]?0:PADS[1]?1:-1):PADS[side]?side:PADS[1-side]?1-side:-1;if(i<0)return;
   const p=PADS[i],B=n=>!!p.buttons[n]?.pressed,st=padRep[i],now=performance.now();
   if(G.padUsed&&G.curTurn!==G.turn){G.cur=homeCur();G.curTurn=G.turn;curInfo()}
   let dc=0,dr=0;const ax=p.axes[0]||0,ay=p.axes[1]||0;
@@ -1232,9 +1380,9 @@ function fitApp(){
   app.style.setProperty('--sw',Math.floor(sw)+'px');app.style.zoom=z.toFixed(3);
 }
 addEventListener('resize',()=>{fitApp();if(D)fitCanvas()});
-if(!load())newGame(); else render();
+const hadSave=load();if(!hadSave)newGame(); else render();
 fitApp();
-try{if(!localStorage.getItem('sshibka-seen')){localStorage.setItem('sshibka-seen','1');showRules()}}catch(e){showRules()}
+try{if(!localStorage.getItem('sshibka-seen')){localStorage.setItem('sshibka-seen','1');showRules()}else if(!hadSave)showMenu()}catch(e){showRules()}
 </script>
 </body>
 </html>
