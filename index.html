@@ -2,13 +2,21 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#120d09">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Сшибка">
 <title>Сшибка — Заря против Пепла</title>
 <style>
 :root{--panel:rgba(22,15,10,.86);--line:#6b5232;--txt:#f1e6d2;--mut:#b3a289;--dawn:#f2c14e;--ash:#e8644a;--gold:#d9b46a}
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%}
-body{background:#120d09 url(img/bg.jpg) center/cover fixed;color:var(--txt);font:15px/1.45 Georgia,"Times New Roman",serif;user-select:none}
+body{background:#120d09 url(img/bg.jpg) center/cover fixed;color:var(--txt);font:15px/1.45 Georgia,"Times New Roman",serif;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 body::before{content:"";position:fixed;inset:0;background:radial-gradient(ellipse at 50% 40%,#0000 30%,#000a 100%);pointer-events:none;z-index:-1}
 h1{margin:0;font-size:30px;letter-spacing:1px;text-shadow:0 2px 6px #000}
 h1 b{color:var(--dawn)} h1 i{font-style:normal;color:var(--ash)}
@@ -45,6 +53,7 @@ h1 b{color:var(--dawn)} h1 i{font-style:normal;color:var(--ash)}
 .hp{position:absolute;left:12px;right:12px;bottom:3px;height:5px;background:#000c;border-radius:3px;pointer-events:none}
 .hp i{display:block;height:100%;border-radius:3px}
 #side{width:350px;display:flex;flex-direction:column;gap:12px}
+@media (max-width:1100px){#app{gap:16px;padding:14px 10px}#side{width:300px;font-size:14px}h1{font-size:26px}}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;box-shadow:0 6px 20px #0008}
 .box h3{margin:0 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--gold)}
 #info .nm{font-size:20px;font-weight:700;display:flex;align-items:center;gap:8px}
@@ -62,6 +71,22 @@ button:hover{filter:brightness(1.2)}
 button.pri{background:linear-gradient(#c8963f,#7c5419);border-color:#f2d08a;color:#fff8e6;font-weight:700;text-shadow:0 1px 2px #000}
 #duel{position:fixed;inset:0;background:#050403;display:none;align-items:center;justify-content:center;z-index:5}
 #duel.on{display:flex}
+#duel{touch-action:none}
+/* сенсорное управление: каждая половина экрана — свой игрок */
+#touch{position:absolute;inset:0;display:none}
+body.touch #touch{display:flex}
+.th{flex:1;position:relative}
+.stick{position:absolute;width:130px;height:130px;margin:-65px 0 0 -65px;border-radius:50%;border:3px solid #fff5;background:#0004;display:none;pointer-events:none}
+.stick i{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:#fffa;box-shadow:0 2px 8px #000a}
+.th.dawn .stick{border-color:#f2c14e99}.th.ash .stick{border-color:#e8644a99}
+.tb{position:absolute;bottom:max(18px,env(safe-area-inset-bottom));width:84px;height:84px;border-radius:50%;border:3px solid #fff6;background:#000a;color:#fff;font:600 13px/1.1 Georgia,serif;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px;opacity:.82}
+.tb b{font-size:26px;line-height:1}
+.tb.on{background:#fff4;opacity:1;transform:scale(.94)}
+.th .tb.a{right:22px}.th .tb.b{right:118px;bottom:max(70px,calc(env(safe-area-inset-bottom) + 52px))}
+.th.dawn .tb{border-color:#f2c14e}.th.ash .tb{border-color:#e8644a}
+.thint{position:absolute;left:0;right:0;top:44%;text-align:center;color:#fff8;font-size:15px;pointer-events:none;text-shadow:0 1px 3px #000}
+#instBtn{display:none}
+.touchonly{display:none} body.touch .touchonly{display:block}
 #cv{display:block;width:min(100vw,calc(100vh*16/9));height:auto}
 #ovl{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;z-index:10;padding:16px}
 #ovl.on{display:flex}
@@ -95,16 +120,23 @@ kbd{display:inline-block;padding:0 6px;border:1px solid #fff6;border-bottom-widt
       <div><span class="dawnc">Заря</span> (левая половина): <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, <kbd>F</kbd> атака, <kbd>G</kbd> умение</div>
       <div style="margin-top:4px"><span class="ashc">Пепел</span> (правая половина): стрелки, <kbd>.</kbd> атака, <kbd>/</kbd> умение <span class="mut">(или <kbd>K</kbd><kbd>L</kbd>, Num1/2)</span></div>
       <div style="margin-top:6px">🎮 <span class="mut">Геймпады: первый — Заря, второй — Пепел. Стик или крестовина — ход, <kbd>A</kbd> атака, <kbd>B</kbd>/<kbd>X</kbd> умение, <kbd>A</kbd>/<kbd>Start</kbd> — «В бой» и «К доске».</span> <span id="pads" class="mut"></span></div>
+      <div class="touchonly" style="margin-top:6px">👆 <span class="mut">Планшет: в бою каждый на своей половине — ведите пальцем (джойстик), справа внизу ⚔ атака и ✦ умение.</span></div>
     </div>
     <div class="box"><h3>Летопись</h3><div id="log"></div></div>
     <div class="btns">
       <button onclick="showRules()">Правила</button>
       <button onclick="askNew()">Новая игра</button>
       <button id="sndBtn" onclick="toggleSnd()">Звук: вкл</button>
+      <button id="instBtn" onclick="installApp()">Установить</button>
     </div>
   </div>
 </div>
-<div id="duel"><canvas id="cv"></canvas></div>
+<div id="duel"><canvas id="cv"></canvas>
+  <div id="touch">
+    <div class="th dawn" data-i="0"><div class="stick"><i></i></div><div class="tb b" data-k="b"><b>✦</b><span></span></div><div class="tb a" data-k="a"><b>⚔</b><span></span></div></div>
+    <div class="th ash" data-i="1"><div class="stick"><i></i></div><div class="tb b" data-k="b"><b>✦</b><span></span></div><div class="tb a" data-k="a"><b>⚔</b><span></span></div></div>
+  </div>
+</div>
 <div id="ovl"><div class="card" id="ovc"></div></div>
 
 <script>
@@ -376,7 +408,7 @@ function closeModal(){ovl.classList.remove('on')}
 function askNew(){modal(`<h2>Начать заново?</h2><p>Текущая партия будет потеряна.</p><div class="btns"><button class="pri" data-pri onclick="closeModal();newGame()">Да, новая игра</button><button onclick="closeModal()">Отмена</button></div>`)}
 function showRules(){
   modal(`<h2>Правила «Сшибки»</h2>
-  <p>Два игрока за одним компьютером: <span class="dawnc">Орден Зари</span> (снизу) против <span class="ashc">Клана Пепла</span> (сверху). Ходы по очереди, мышью.</p>
+  <p>Два игрока за одним компьютером: <span class="dawnc">Орден Зари</span> (снизу) против <span class="ashc">Клана Пепла</span> (сверху). Ходы по очереди, мышью или касанием.</p>
   <ul>
     <li><b>Цель</b>: уничтожить <b>всю</b> армию врага. Лидеры (♛ Светоч и Владыка) — просто самые сильные бойцы, их гибель партию не заканчивает. Источники ✦ лечат стоящих на них.</li>
     <li><b>Ход</b>: выберите свою фигуру — подсветятся клетки. Наземные идут по свободным клеткам в 8 направлениях и не проходят сквозь фигуры и скалы. Летающие перелетают всё и могут садиться на скалы.</li>
@@ -386,6 +418,8 @@ function showRules(){
     <li><b>Раны сохраняются</b> после боя. В начале своего хода фигуры лечатся на 5%, а стоящие на Источнике — на 25%.</li>
   </ul>
   <p><b>Бой:</b> <span class="dawnc">Заря</span> — <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, <kbd>F</kbd> атака, <kbd>G</kbd> умение. <span class="ashc">Пепел</span> — стрелки, <kbd>.</kbd> атака, <kbd>/</kbd> умение (или <kbd>K</kbd>/<kbd>L</kbd>, Num1/Num2). Удары летят туда, куда смотрит боец. Кнопку можно держать.</p>
+  <p>👆 <b>Планшет</b>: в бою каждый игрок управляет на своей половине экрана — ведите пальцем в любом месте половины (появится джойстик), справа внизу кнопки ⚔ атака и ✦ умение.</p>
+  <p>📲 <b>Как приложение</b>: на ПК в Chrome/Edge — кнопка «Установить» (или значок в адресной строке); на iPad в Safari — «Поделиться» → «На экран „Домой“». После первого запуска игра работает без интернета.</p>
   <p>🎮 <b>Геймпады</b>: первый подключённый — Заря, второй — Пепел (клавиатура тоже работает). Стик или крестовина — ход, <kbd>A</kbd> — атака, <kbd>B</kbd> или <kbd>X</kbd> — умение, <kbd>A</kbd>/<kbd>Start</kbd> — подтвердить окно.</p>
   <div class="btns"><button class="pri" data-pri onclick="closeModal()">К битве!</button></div>`);
 }
@@ -474,6 +508,7 @@ function startDuel(att,def){
   D={att,def,ter,cell:{r:def.r,c:def.c},f:[mkFighter(dawnU,0,s0,a),mkFighter(ashU,1,s1,a+Math.PI)],proj:[],fx:[],parts:[],floats:[],traps:[],totems:[],later:[],
      ...ar,t:0,limit:LIMIT,phase:'intro',cdT:0,endT:0,timeout:false,shake:0};
   document.getElementById('duel').classList.add('on');
+  touchReset();document.querySelectorAll('.th').forEach(th=>{const f=D.f[+th.dataset.i];th.querySelectorAll('.tb').forEach(b=>b.querySelector('span').textContent=f.T.ab[b.dataset.k==='a'?0:1].n)});
   snd(196,.25,'sawtooth',.05,.5);
   const card=f=>{const p=f.idx,k=CTRL[p];return `<div class="fc ${f.side}"><img class="g" src="${uImg(f.u.t)}" alt="">
     <div style="font-size:20px;font-weight:700">${f.T.name}${f.u===att?' <span class="mut">(нападает)</span>':''}</div>
@@ -683,7 +718,7 @@ function finishDuel(){
   else if(fa.dead&&fd.dead)addLog(`⚔ ${uName(att)} и ${uName(def)} пали оба`);
   else addLog(`⚔ ${uName(fa.dead?def:att)} одолевает: ${uName(fa.dead?att:def)} выбывает`);
   const advance=fd.dead&&!fa.dead;
-  D=null;document.getElementById('duel').classList.remove('on');keys.clear();
+  D=null;document.getElementById('duel').classList.remove('on');keys.clear();touchReset();
   if(advance)animateMove(att,[from,[cell.r,cell.c]],{},()=>{att.r=cell.r;att.c=cell.c;endTurn()});
   else{render();endTurn()}
 }
@@ -763,7 +798,7 @@ function drawWorld(v){
     const t=Math.round(dist(own,e)/40)+' м';const tx=ax-Math.cos(a)*30,ty=ay-Math.sin(a)*26;ctx.strokeText(t,tx,ty);ctx.fillStyle='#fff';ctx.fillText(t,tx,ty);
   }
   // мини-карта
-  const MS=150,mx=v.idx?v.x+v.w-MS-12:v.x+12,my=v.y+v.h-MS-12,kk=MS/WW;
+  const MS=150,mx=v.idx?v.x+v.w-MS-12:v.x+12,my=document.body.classList.contains('touch')?v.y+12:v.y+v.h-MS-12,kk=MS/WW; // на планшете внизу кнопки — карта наверх
   ctx.globalAlpha=.85;ctx.drawImage(D.mini,mx,my);ctx.globalAlpha=1;
   ctx.strokeStyle='#d9b46a';ctx.lineWidth=2;ctx.strokeRect(mx,my,MS,MS);
   ctx.strokeStyle='#fff6';ctx.lineWidth=1;ctx.strokeRect(mx+(v.cx-v.w/2)*kk,my+(v.cy-v.h/2)*kk,v.w*kk,v.h*kk);
@@ -847,15 +882,57 @@ function pollPads(){
     padPrev[i].ok=now});
 }
 function padInput(i){
-  const p=PADS[i],r={mx:0,my:0,a:false,b:false};if(!p)return r;
+  const t=TOUCH[i],p=PADS[i],r={mx:t.mx,my:t.my,a:t.a,b:t.b};if(!p)return r;
   const B=n=>!!p.buttons[n]?.pressed;
   let x=p.axes[0]||0,y=p.axes[1]||0;if(Math.hypot(x,y)<.35){x=0;y=0}
   if(B(14))x=-1;if(B(15))x=1;if(B(12))y=-1;if(B(13))y=1;
-  r.mx=x;r.my=y;r.a=B(0)||B(7)||B(5);r.b=B(1)||B(2)||B(6)||B(4);
+  if(x||y){r.mx=x;r.my=y}r.a=r.a||B(0)||B(7)||B(5);r.b=r.b||B(1)||B(2)||B(6)||B(4);
   // A, пока открыто окно, не должна сразу бить
   if(padPrev[i].ok&&D&&D.phase!=='fight')r.a=false;
   return r;
 }
+// ---------- Касания: левая половина — Заря, правая — Пепел ----------
+const TOUCH=[{mx:0,my:0,a:false,b:false},{mx:0,my:0,a:false,b:false}];
+const tptr=new Map(); // pointerId → {i, kind:'stick'|'a'|'b', ox, oy, el}
+function touchOn(){if(!document.body.classList.contains('touch'))document.body.classList.add('touch')}
+if(navigator.maxTouchPoints>0&&matchMedia('(pointer:coarse)').matches)touchOn();
+function touchSync(){
+  for(let i=0;i<2;i++){const T=TOUCH[i];T.a=T.b=false;T.mx=T.my=0}
+  for(const p of tptr.values()){const T=TOUCH[p.i];if(p.kind==='stick'){T.mx=p.mx||0;T.my=p.my||0}else T[p.kind]=true}
+}
+document.querySelectorAll('.th').forEach(th=>{
+  const i=+th.dataset.i,st=th.querySelector('.stick'),knob=st.firstChild;
+  th.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse')return;touchOn();e.preventDefault();try{th.setPointerCapture(e.pointerId)}catch(_){}
+    const btn=e.target.closest('.tb');
+    if(btn){btn.classList.add('on');tptr.set(e.pointerId,{i,kind:btn.dataset.k,el:btn})}
+    else{const r=th.getBoundingClientRect();st.style.left=(e.clientX-r.left)+'px';st.style.top=(e.clientY-r.top)+'px';st.style.display='block';knob.style.transform='';
+      tptr.set(e.pointerId,{i,kind:'stick',ox:e.clientX,oy:e.clientY,el:st})}
+    touchSync();
+  });
+  th.addEventListener('pointermove',e=>{
+    const p=tptr.get(e.pointerId);if(!p||p.kind!=='stick')return;
+    let dx=e.clientX-p.ox,dy=e.clientY-p.oy;const l=Math.hypot(dx,dy),R=50;
+    if(l>R){dx=dx/l*R;dy=dy/l*R}
+    knob.style.transform=`translate(${dx}px,${dy}px)`;
+    if(l<12){p.mx=p.my=0}else{p.mx=dx/R;p.my=dy/R}
+    touchSync();
+  });
+  const up=e=>{const p=tptr.get(e.pointerId);if(!p)return;tptr.delete(e.pointerId);
+    if(p.kind==='stick'){p.el.style.display='none'}else p.el.classList.remove('on');touchSync()};
+  th.addEventListener('pointerup',up);th.addEventListener('pointercancel',up);
+});
+function touchReset(){tptr.clear();touchSync();document.querySelectorAll('.stick').forEach(s=>s.style.display='none');document.querySelectorAll('.tb.on').forEach(b=>b.classList.remove('on'))}
+
+// ---------- Установка как приложения ----------
+let instEvt=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();instEvt=e;document.getElementById('instBtn').style.display=''});
+function installApp(){if(!instEvt)return;instEvt.prompt();instEvt.userChoice.finally(()=>{instEvt=null;document.getElementById('instBtn').style.display='none'})}
+addEventListener('appinstalled',()=>{document.getElementById('instBtn').style.display='none'});
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+// iOS/Safari включает звук только после касания
+addEventListener('pointerdown',()=>{try{AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume()}catch(e){}},{passive:true});
+
 addEventListener('gamepadconnected',()=>{pollPads();snd(660,.08,'triangle',.04)});
 
 let lastT=performance.now();
@@ -877,7 +954,18 @@ addEventListener('keydown',e=>{
 addEventListener('keyup',e=>keys.delete(e.code));
 addEventListener('blur',()=>keys.clear());
 
+// доска подстраивается под экран (планшет, маленький ноутбук): панель остаётся сбоку, доска — целиком по высоте
+function fitBoard(){
+  const b=boardEl,side=document.getElementById('side'),full=644;
+  const beside=innerWidth>=860,availW=beside?innerWidth-side.offsetWidth-50:innerWidth-24;
+  const top=b.getBoundingClientRect().top/(parseFloat(b.style.zoom)||1)+scrollY;
+  const availH=innerHeight-Math.min(top,140)-24;
+  const z=Math.max(.5,Math.min(1,availW/full,beside?availH/full:1));
+  b.style.zoom=z.toFixed(3);
+}
+addEventListener('resize',fitBoard);
 if(!load())newGame(); else render();
+fitBoard();
 try{if(!localStorage.getItem('sshibka-seen')){localStorage.setItem('sshibka-seen','1');showRules()}}catch(e){showRules()}
 </script>
 </body>
