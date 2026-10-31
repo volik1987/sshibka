@@ -284,7 +284,7 @@ function loadImg(k,src){const i=new Image();i.src=src;IMG[k]=i}
 const FRAMES=['','_w1','_w2','_a'];
 Object.keys(TYPES).forEach(k=>FRAMES.forEach(fr=>loadImg('u_'+k+fr,`img/u_${k}${fr}.png`)));
 // во сколько раз кадр шире «стоящей» фигуры (кадры выровнены по общему якорю)
-const SPRK={arhangel:1,demon:1.15,paladin:1.154,gnom:1.296,edinorog:1.12,charodeyka:1.073,nekromant:1.421,minotavr:1,pauk:1.276,elemental:1,goblin:1.223,elf:1.109,ent:1.195,feniks:1.003,naga:1.27,perevertysh:1.228,ratnik:1.133,luchnica:1,grifon:1.073,zhrica:1.26,strazh:1.06,svetoch:1.104,pepelnik:1.11,garpun:1.286,viverna:1.017,shaman:1.043,troll:1.067,vladyka:1.067};
+const SPRK={arhangel:1,demon:1.15,paladin:1.154,gnom:1.048,edinorog:1.12,charodeyka:1.029,nekromant:1.211,minotavr:1.11,pauk:1.276,elemental:1,goblin:1.242,elf:1.109,ent:1.195,feniks:1.003,naga:1.27,perevertysh:1.228,ratnik:1.133,luchnica:1,grifon:1.073,zhrica:1.26,strazh:1.06,svetoch:1.104,pepelnik:1.11,garpun:1.286,viverna:1.017,shaman:1.043,troll:1.067,vladyka:1.067};
 ['oak','pine','boulder','rocks','portal','trap','totem','spring'].forEach(k=>loadImg('p_'+k,`img/p_${k}.png`));
 ['grass','forest','rock','swamp','lava','well'].forEach(k=>loadImg('g_'+k,`img/g_${k}.jpg`));
 ['fire','arcane','holy','bolt','skull','boom','poison','burn','roots','feather','ice','dark','web','bomb'].forEach(k=>loadImg('fx_'+k,`img/fx_${k}.png`));
