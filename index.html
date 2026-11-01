@@ -305,9 +305,14 @@ const lvlTxt=u=>{const l=(u.lvl||1)-1;return l?`здоровье +${15*l}%, ур
 
 // ---------- Картинки ----------
 const IMG={};
-function loadImg(k,src){const i=new Image();i.src=src;IMG[k]=i}
+// сначала то, без чего не нарисовать доску и арену; кадры анимации и бой королей — следом (late), офлайн-кэш — после всех
+const LATE=[];let lateOn=false;
+function loadImg(k,src,late){const i=new Image();IMG[k]=i;
+  i.onerror=()=>{i.tries=(i.tries||0)+1;if(i.tries<4)setTimeout(()=>{i.src=src+'?r='+i.tries},1500*i.tries)}; // сбой сети — повторить
+  if(late&&!lateOn)LATE.push([i,src]);else i.src=src}
+function startLate(){if(lateOn)return;lateOn=true;for(const [i,src] of LATE)i.src=src;LATE.length=0}
 const FRAMES=['','_w1','_w2','_a'];
-Object.keys(TYPES).forEach(k=>FRAMES.forEach(fr=>loadImg('u_'+k+fr,`img/u_${k}${fr}.png`)));
+Object.keys(TYPES).forEach(k=>FRAMES.forEach(fr=>loadImg('u_'+k+fr,`img/u_${k}${fr}.png`,fr!=='')));
 // во сколько раз кадр шире «стоящей» фигуры (кадры выровнены по общему якорю)
 const SPRK={mohnach:1,arhangel:1,demon:1.15,paladin:1.154,gnom:1.048,edinorog:1.12,charodeyka:1.029,nekromant:1.211,minotavr:1.11,pauk:1.276,elemental:1,goblin:1.242,elf:1.109,ent:1.195,feniks:1.003,naga:1.27,perevertysh:1.228,ratnik:1.133,luchnica:1,grifon:1.073,zhrica:1.26,strazh:1.06,svetoch:1.104,pepelnik:1.11,garpun:1.286,viverna:1.017,shaman:1.043,troll:1.067,vladyka:1.067};
 ['oak','pine','boulder','rocks','portal','trap','totem','spring'].forEach(k=>loadImg('p_'+k,`img/p_${k}.png`));
@@ -909,7 +914,7 @@ function startDuel(att,def,ar0){
 function beginFight(){if(D&&D.net){netReady();return}closeModal();if(!D)return;D.phase='count';D.cdT=2.4;snd(440,.1,'square',.04)}
 // ---------- Поединок королей: Архангел против Демона, вид сбоку ----------
 // позы листа: 0 стойка, 1 шаг, 2 удар, 3 пинок, 4 блок, 5 прыжок, 6 ранен, 7 повержен, 8 чары
-['arh','dem'].forEach(s=>{for(let i=0;i<9;i++)loadImg(`kf_${s}_${i}`,`img/kf_${s}_${i}.png`)});loadImg('kbg','img/kbg.jpg');
+['arh','dem'].forEach(s=>{for(let i=0;i<9;i++)loadImg(`kf_${s}_${i}`,`img/kf_${s}_${i}.png`,1)});loadImg('kbg','img/kbg.jpg',1);
 const KGY=.86,KH=330; // линия пола (доля высоты) и рост бойца на экране
 const KATK={strike:{dur:.34,on:.1,off:.2,range:170,dmg:6,pose:2,kb:200,snd:'sword'},kick:{dur:.46,on:.18,off:.3,range:190,dmg:8,pose:3,kb:280,snd:'punch'},
   air:{dur:.5,on:.05,off:.4,range:175,dmg:9,pose:3,kb:260,snd:'punch'},upper:{dur:.5,on:.12,off:.28,range:165,dmg:11,pose:2,kb:140,launch:1,snd:'sword'},
@@ -931,6 +936,7 @@ const KFIN=[{seq:'ffd',btn:'a',dist:'near',fx:'burn',cat:'Добивание',n:
 const KAR={f:'→',b:'←',u:'↑',d:'↓'},kSeqTxt=c=>[...c.seq].map(x=>KAR[x]).join(' ')+' '+(c.btn==='a'?'удар':'пинок'),KDIST={near:'вплотную',mid:'на пару шагов',far:'издали',any:'откуда угодно'};
 const isKings=(a,b)=>TYPES[a.t].leader&&TYPES[b.t].leader;
 function startKings(att,def){
+  startLate();
   const dawnU=att.side==='dawn'?att:def,ashU=att.side==='ash'?att:def;
   const mk=(u,idx)=>({u,idx,side:u.side,skin:u.side==='dawn'?'arh':'dem',name:TYPES[u.t].name,x:idx?W*.72:W*.28,h:0,vy:0,kb:0,dashT:0,face:idx?-1:1,hp:u.hp,max:maxHp(u),dead:false,
     pose:0,anim:0,atk:null,stun:0,armorT:0,block:false,spc:0,seq:[],prevA:false,prevB:false,prevDir:null,prevV:null,flash:0,dmgK:lvlK(u).dmg,col:SIDES[u.side].col,lvl:u.lvl||1});
@@ -1601,7 +1607,7 @@ function drawWorld(v){
   for(const m of D.mobs){if(m.dead||!vis(m.x,m.y,40))continue;
     ctx.fillStyle='#0007';ctx.beginPath();ctx.ellipse(m.x+3,m.y+m.r*.6,m.r,m.r*.5,0,0,7);ctx.fill();
     ctx.strokeStyle=m.ally?SIDES[m.ally].col:'#bbb';ctx.lineWidth=2;ctx.beginPath();ctx.arc(m.x,m.y,m.r+2,0,7);ctx.stroke();
-    const fr=m.atkT>0?'_a':['','_w1','','_w2'][Math.floor(m.walk/18)%4],key='u_'+m.T.skin+fr,img=m.T.dark?darkImg(key):IMG[key];
+    const fr=m.atkT>0?'_a':['','_w1','','_w2'][Math.floor(m.walk/18)%4],key='u_'+m.T.skin+fr,img=m.T.dark?(darkImg(key)||darkImg('u_'+m.T.skin)):ready(IMG[key])?IMG[key]:IMG['u_'+m.T.skin];
     ctx.globalAlpha=m.flash>0?.6:1;sprite(img,m.x,m.y,m.r*3.6,m.face+Math.PI/2);ctx.globalAlpha=1;
     ctx.fillStyle='#000';ctx.fillRect(m.x-14,m.y-m.r-10,28,4);ctx.fillStyle='#ddd';ctx.fillRect(m.x-14,m.y-m.r-10,28*m.hp/m.max,4)}
   for(const t of D.totems){if(!vis(t.x,t.y,30))continue;
@@ -1685,7 +1691,7 @@ function drawFighter(f,isOwn){
   let lift=1;
   if(f.dive){const k=Math.min(1,f.dive.t/f.dive.dur);lift=1+.7*Math.sin(Math.PI*k);
     ctx.strokeStyle='#ff6a2a';ctx.lineWidth=3;ctx.setLineDash([6,5]);ctx.beginPath();ctx.arc(f.dive.x1,f.dive.y1,f.dive.ab.radius,0,7);ctx.stroke();ctx.setLineDash([])}
-  const fk='u_'+f.skin+fr,fb='u_'+f.skin,fimg=f.shade?(darkImg(fk)||darkImg(fb)):(IMG[fk]||IMG[fb]);
+  const fk='u_'+f.skin+fr,fb='u_'+f.skin,fimg=f.shade?(darkImg(fk)||darkImg(fb)):ready(IMG[fk])?IMG[fk]:IMG[fb];
   if(f.shade&&Math.random()<.3&&D)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y+rnd(-f.r,f.r),vx:0,vy:-25,life:.6,max:.6,col:'#7a3cc0',r:4});
   if(!sprite(fimg,lx,ly,S*sink*lift*(SPRK[f.skin]||1)*(lunge?1.05:1),f.face+Math.PI/2)){
     ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(f.x,y,f.r,0,7);ctx.fill();
@@ -1954,7 +1960,11 @@ let instEvt=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();instEvt=e;document.getElementById('instBtn').style.display=''});
 function installApp(){if(!instEvt)return;instEvt.prompt();instEvt.userChoice.finally(()=>{instEvt=null;document.getElementById('instBtn').style.display='none'})}
 addEventListener('appinstalled',()=>{document.getElementById('instBtn').style.display='none'});
-if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+// очередь картинок: поздние — когда загрузились основные (или через 6 с), офлайн-кэш — когда загрузились все (или через 30 с)
+{const t0=performance.now(),done=()=>Object.values(IMG).every(i=>i.complete||!i.src);let sw=false;
+ const tick=()=>{const dt=performance.now()-t0;if(!lateOn&&(done()||dt>6000))startLate();
+   if(lateOn&&!sw&&(done()||dt>30000)){sw=true;if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{})}
+   if(!sw)setTimeout(tick,300)};tick()}
 // iOS/Safari включает звук только после касания
 addEventListener('pointerdown',()=>{try{AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();sfxLoad()}catch(e){}},{passive:true});
 addEventListener('keydown',()=>{try{AC=AC||new AudioContext();if(AC.state==='suspended')AC.resume();sfxLoad()}catch(e){}});
