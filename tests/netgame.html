@@ -1,0 +1,63 @@
+<!doctype html><meta charset="utf-8"><style>iframe{width:1100px;height:700px}</style>
+<!-- Сетевой тест: две копии игры в iframe соединяются через PeerJS. Запуск: раздать папку sshibka по http (порт 8791), python3 tests/slow.py &, затем Chrome --headless=new --disable-features=WebRtcHideLocalIpsWithMdns --dump-dom http://localhost:8791/tests/netgame.html -->
+<pre id="out">wait</pre><img src="http://127.0.0.1:8799/70">
+<iframe id="h" src="../index.html?t=h"></iframe><iframe id="g" src="../index.html?t=g"></iframe>
+<script>
+const out=[],L=s=>{out.push(s);document.getElementById('out').textContent=out.join('\n')};
+const sl=ms=>new Promise(r=>setTimeout(r,ms));
+const until=async(f,ms=15000)=>{const t=Date.now();while(Date.now()-t<ms){try{if(f())return true}catch(e){}await sl(100)}return false};
+onload=null;
+(async()=>{try{
+  await sl(2500);const h=document.getElementById('h').contentWindow,g=document.getElementById('g').contentWindow;
+  const H=x=>h.eval(x),Gq=x=>g.eval(x);
+  h.addEventListener('error',e=>L('HOST ERR '+e.message));g.addEventListener('error',e=>L('GUEST ERR '+e.message));
+  H("OPTS.mode='net';OPTS.human='dawn';netHost()");
+  await until(()=>H("NET.peer&&NET.peer.open"));const code=H("NET.code");L('code '+code);
+  Gq(`showJoin();document.getElementById('netCode').value='${code}';netJoin()`);
+  L('connected '+await until(()=>Gq("G.mode==='net'&&G.turn==='dawn'&&G.log.length<3"),20000));
+  const same=()=>H("JSON.stringify(G.units.map(u=>[u.id,u.t,u.r,u.c,u.hp]))")===Gq("JSON.stringify(G.units.map(u=>[u.id,u.t,u.r,u.c,u.hp]))");
+  L('same board '+same()+' guest side '+Gq("NET.side")+' host side '+H("NET.side"));
+  Gq("closeModal()");
+  // гость не может ходить не в свой ход
+  Gq("const u=G.units.find(u=>u.side==='dawn'&&movesOf(u).length);cellAction(u.r,u.c)");L('guest blocked on host turn: '+(Gq("G.sel")===null));
+  // ход хозяина
+  H("const u=G.units.find(u=>u.side==='dawn'&&movesOf(u).some(m=>!m.atk)),m=movesOf(u).find(m=>!m.atk);cellAction(u.r,u.c);cellAction(m.r,m.c)");
+  L('after host move turn ash: '+await until(()=>H("G.turn")==='ash'&&Gq("G.turn")==='ash'&&!Gq("G.busy")&&same(),8000));
+  // ход гостя
+  Gq("const u=G.units.find(u=>u.side==='ash'&&movesOf(u).some(m=>!m.atk)),m=movesOf(u).find(m=>!m.atk);cellAction(u.r,u.c);cellAction(m.r,m.c)");
+  L('after guest move turn dawn: '+await until(()=>H("G.turn")==='dawn'&&Gq("G.turn")==='dawn'&&!H("G.busy")&&same(),8000));
+  // нападение: ставим пешку Пепла перед пешкой Зари
+  H("const a=G.units.find(u=>u.side==='dawn'&&u.r===6&&!unitAt(5,u.c)),b=G.units.find(u=>u.side==='ash'&&u.r===1);b.r=a.r-1;b.c=a.c;b.t='pepelnik';b.hp=TYPES.pepelnik.hp;a.t='ratnik';a.hp=TYPES.ratnik.hp;save();render();window.__a=a.id;window.__b=b.id");
+  await until(same,5000);
+  H("const a=G.units.find(u=>u.id===__a),b=G.units.find(u=>u.id===__b);cellAction(a.r,a.c);cellAction(b.r,b.c)");
+  L('duel both: '+await until(()=>H("!!D")&&Gq("!!D"),10000)+' '+H('!!D')+Gq('!!D'));
+  L('arena same: '+(H("D.loc.k+D.obs.length+'/'+D.mobs.length")===Gq("D.loc.k+D.obs.length+'/'+D.mobs.length"))+' '+H("D.loc.k+' obs '+D.obs.length+' mobs '+D.mobs.length"));
+  L('guest view me: '+Gq("D.solo&&D.f.find(f=>!other(f)).side")+' host me: '+H("D.f.find(f=>!other(f)).side"));
+  H("beginFight()");await sl(300);L('host waits: '+H("D.phase"));Gq("beginFight()");
+  L('fight both: '+await until(()=>H("D.phase")==='fight'&&Gq("D.phase")==='fight',8000));
+  // размер снимка
+  H("window.__mx=0;const s0=NET.conn.send.bind(NET.conn);NET.conn.send=d=>{__mx=Math.max(__mx,d.length);s0(d)}");
+  // гость идёт вправо
+  const x0=H("D.f[1].x");Gq("keys.add('KeyD')");await sl(1200);Gq("keys.delete('KeyD')");await sl(300);
+  L(`guest moved on host: ${(H("D.f[1].x")-x0).toFixed(0)} px, on guest: ${(Gq("D.f[1].x")-x0).toFixed(0)} px`);
+  // хозяин бьёт гостя приёмом: ставим рядом
+  H("D.obs=[];D.mobs=[];D.obsV++;const a=D.f[0],e=D.f[1];a.x=e.x-40;a.y=e.y;a.face=0;e.hp=e.max=500;");
+  await sl(200);
+  for(const k of ['KeyA','KeyD']){H(`keys.add('${k}')`);await sl(80);H(`keys.delete('${k}')`);await sl(80)}
+  H("D.f[0].face=0;D.f[0].x=D.f[1].x-40;D.f[0].y=D.f[1].y;keys.add('KeyF')");await sl(120);H("keys.delete('KeyF')");await sl(500);
+  L(`combo hit: guest hp on host ${H("D.f[1].hp").toFixed(1)}, on guest ${Gq("D.f[1].hp").toFixed(1)}; guest floats: ${Gq("D.floats.map(f=>f.txt||f.t).length")}`);
+  L('guest got sounds/parts: parts '+Gq("D.parts.length"));
+  L('max snapshot bytes '+H("__mx"));
+  // гость нажимает удар — проверка, что хозяин его исполняет
+  const cd=H("D.f[1].cd[0]");Gq("keys.add('KeyF')");await sl(250);Gq("keys.delete('KeyF')");await sl(200);L('guest attack fired on host: '+(H("D.f[1].cd[0]")>0));
+  // конец боя
+  H("hit(D.f[1],9999,D.f[0])");
+  L('result both: '+await until(()=>H("D&&D.phase")==='done'&&Gq("D&&D.phase")==='done',8000)+' guest modal: '+Gq("ovc.innerText.slice(0,40).replace(/\\n/g,' ')"));
+  Gq("finishDuel()");await sl(300);L('guest still waits: '+Gq("!!D"));
+  H("finishDuel()");
+  L('back to board both: '+await until(()=>!H("D")&&!Gq("D")&&!H("G.busy")&&same()&&H("G.turn")==='ash',10000)+' units '+H("G.units.length")+' last log: '+Gq("G.log[0].replace(/<[^>]+>/g,'')"));
+  // обрыв связи
+  H("NET.conn.close()");L('guest drop: '+await until(()=>Gq("G.mode")==='pvp'&&Gq("ovc.innerText").includes('Связь потеряна'),8000));
+}catch(e){L('ERR '+e.message+e.stack)}
+L('DONE')})();
+</script>

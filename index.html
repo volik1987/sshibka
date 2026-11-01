@@ -91,6 +91,8 @@ button:hover{filter:brightness(1.2)}
 .pick img{width:58px;height:58px;filter:drop-shadow(0 2px 2px #000)}.pick span{font-size:11px;line-height:1.1;text-align:center}
 .pick.on,.pick.lead{opacity:1;border-color:#f2d08a;box-shadow:0 0 0 2px #f2d08a66}.pick.lead{border:1px dashed #f2d08a;border-radius:8px;cursor:default}
 .pick i{position:absolute;top:2px;left:4px;font-style:normal;font-weight:700;color:#ffe08a;font-size:13px}
+#ovc .code{font:700 64px/1.1 Georgia,serif;letter-spacing:.25em;color:#ffe08a;margin:8px 0;user-select:all}
+#ovc .codein{font:700 40px Georgia,serif;letter-spacing:.25em;text-transform:uppercase;width:240px;text-align:center;padding:6px;border-radius:10px;border:2px solid #8a6a3e;background:#120c08;color:#ffe08a}
 button.opt{display:flex;flex-direction:column;align-items:center;min-width:150px;opacity:.75}button.opt.on{opacity:1;border-color:#f2d08a;box-shadow:0 0 0 2px #f2d08a66,0 0 18px #f2c14e44;background:linear-gradient(#5a3d1c,#2e1d0c)}
 button.opt small{font-size:12px;font-weight:400;color:#cbb790;margin-top:2px}
 .menu{display:flex;flex-direction:column;gap:12px;margin:10px 0}.mrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center}.mrow>b{width:100%;text-align:center;color:#d9b46a;font-size:14px;letter-spacing:1px}
@@ -323,7 +325,13 @@ function darkImg(k){
 
 // ---------- Звук ----------
 let AC=null,muted=false;
-function snd(f,d=.1,type='square',v=.05,slide=0){
+// сеть (подробности — в разделе «Игра по сети»)
+const NET={peer:null,conn:null,host:false,guest:false,side:null,code:'',rin:{mx:0,my:0,a:false,b:false},rq:[],sq:[],snapT:0,obsSent:-1,
+  rdyMe:false,rdyThem:false,duelMsg:null,animDone:false,pend:null,moves:[],lastIn:'',inT:0,shown:false};
+const other=f=>!!(f.ai||f.away); // чужой боец: компьютер или соперник по сети
+const netOn=()=>!!(NET.conn&&NET.conn.open);
+function snd(...a){if(NET.host&&D&&D.net)NET.sq.push(a);sndRaw(...a)}
+function sndRaw(f,d=.1,type='square',v=.05,slide=0){
   if(muted)return;
   try{AC=AC||new AudioContext();const t=AC.currentTime,o=AC.createOscillator(),g=AC.createGain();
     o.type=type;o.frequency.setValueAtTime(f,t);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(30,f*slide),t+d);
@@ -359,12 +367,14 @@ function newGame(){
     units.push({id:id++,t:BACK.dawn[c],side:'dawn',r:NR-1,c});
   }
   units.forEach(u=>{u.hp=TYPES[u.t].hp;u.lvl=1});
-  G={terr,units,turn:'dawn',log:[],sel:null,over:null,last:null,moveNo:1,mode:OPTS.mode,human:OPTS.human,diff:OPTS.diff};
-  addLog('Начало битвы. Первым ходит <span class="dawnc">Орден Зари</span>.'+(G.mode==='cpu'?` Вы играете за ${sideHtml(G.human)}, компьютер — ${DIFF[G.diff].n.toLowerCase()} уровень.`:''));
+  const net=OPTS.mode==='net'&&NET.host&&netOn();
+  G={terr,units,turn:'dawn',log:[],sel:null,over:null,last:null,moveNo:1,mode:OPTS.mode==='net'?(net?'net':'pvp'):OPTS.mode,human:net?NET.side:OPTS.human,diff:OPTS.diff};
+  addLog('Начало битвы. Первым ходит <span class="dawnc">Орден Зари</span>.'+(G.mode==='cpu'?` Вы играете за ${sideHtml(G.human)}, компьютер — ${DIFF[G.diff].n.toLowerCase()} уровень.`:G.mode==='net'?' Игра по сети.':''));
   save();render();
 }
-function save(){try{const {terr,units,turn,log,over,last,moveNo,mode,human,diff}=G;localStorage.setItem(SAVE,JSON.stringify({terr,units,turn,log,over,last,moveNo,mode,human,diff}))}catch(e){}}
-function load(){try{const s=JSON.parse(localStorage.getItem(SAVE));if(s&&s.units&&!s.over){s.units.forEach(u=>u.lvl=u.lvl||1);G={mode:'pvp',human:'dawn',diff:'normal',...s,sel:null};return true}}catch(e){}return false}
+function save(){try{const {terr,units,turn,log,over,last,moveNo,mode,human,diff}=G;localStorage.setItem(SAVE,JSON.stringify({terr,units,turn,log,over,last,moveNo,mode,human,diff}))}catch(e){}
+  if(G.mode==='net'&&NET.host){const {terr,units,turn,log,over,last,moveNo}=G;netSend({t:'sync',g:{terr,units,turn,log,over,last,moveNo}})}}
+function load(){try{const s=JSON.parse(localStorage.getItem(SAVE));if(s&&s.units&&!s.over){s.units.forEach(u=>u.lvl=u.lvl||1);G={mode:'pvp',human:'dawn',diff:'normal',...s,sel:null};if(G.mode==='net')G.mode='pvp';return true}}catch(e){}return false}
 function addLog(h){G.log.unshift(h);G.log.length=Math.min(G.log.length,60)}
 const unitAt=(r,c)=>G.units.find(u=>u.r===r&&u.c===c);
 const inB=(r,c)=>r>=0&&c>=0&&r<NR&&c<NC;
@@ -459,7 +469,7 @@ function render(){
   boardEl.innerHTML=h;
   const tEl=document.getElementById('turn');
   tEl.className=G.turn;
-  tEl.textContent=G.over?'Битва окончена':`Ход ${G.moveNo}: ${SIDES[G.turn].name}${isCpu(G.turn)?' 🤖 думает…':G.mode==='cpu'?' (вы)':''}`;
+  tEl.textContent=G.over?'Битва окончена':`Ход ${G.moveNo}: ${SIDES[G.turn].name}${isCpu(G.turn)?' 🤖 думает…':G.mode==='cpu'?' (вы)':G.mode==='net'?(G.turn===NET.side?' (вы)':' — ходит соперник 🌐'):''}`;
   cpuMaybe();
   document.getElementById('log').innerHTML=G.log.map(x=>`<div>${x}</div>`).join('');
   showInfo(hoverU||G.sel);
@@ -489,11 +499,11 @@ boardEl.addEventListener('click',e=>{
   const cell=e.target.closest('.cell');if(!cell)return;cellAction(+cell.dataset.r,+cell.dataset.c);
 });
 function cellAction(r,c){
-  if(G.over||D||G.busy||isCpu(G.turn))return;
+  if(G.over||D||G.busy||isCpu(G.turn)||G.mode==='net'&&G.turn!==NET.side)return;
   const u=unitAt(r,c);
   if(G.sel){
     const m=movesOf(G.sel).find(m=>m.r===r&&m.c===c);
-    if(m){doMove(G.sel,m);return}
+    if(m){if(G.mode==='net')netSend({t:'move',id:G.sel.id,r,c});doMove(G.sel,m);return}
   }
   if(u&&u.side===G.turn){G.sel=(G.sel===u?null:u);snd(520,.05,'triangle',.04)}
   else G.sel=null;
@@ -510,7 +520,7 @@ function doMove(u,m){
       addLog(`${uName(u)} → ${'abcdefghijklmnop'[m.c]}${NR-m.r}${G.terr[m.r][m.c]==='well'?' (Источник)':''}`);
       endTurn();
     });
-  } else {const d=unitAt(m.r,m.c);snd(300,.15,'sawtooth',.04,.6);animateMove(u,m.path,{strike:1},()=>{render();startDuel(u,d)})}
+  } else {const d=unitAt(m.r,m.c);snd(300,.15,'sawtooth',.04,.6);animateMove(u,m.path,{strike:1},()=>{render();if(G.mode==='net'&&NET.guest){NET.animDone=true;netTryDuel()}else startDuel(u,d)})}
 }
 
 function checkWin(){
@@ -537,7 +547,7 @@ function endTurn(){
 function showOver(){
   const w=G.over;snd(523,.2,'triangle',.06);setTimeout(()=>snd(784,.35,'triangle',.06),180);
   modal(`<div class="center">${w.winner?`<img class="g" style="width:120px;height:120px" src="${uImg(LEADER[w.winner])}">`:'<div style="font-size:60px">⚖️</div>'}
-    <h2>${w.winner?(G.mode==='cpu'?(w.winner===G.human?'Вы победили! ':'Победил компьютер. '):'')+'Победа: '+sideHtml(w.winner):'Ничья'}</h2><p>${w.why}</p>
+    <h2>${w.winner?(G.mode==='cpu'||G.mode==='net'?(w.winner===G.human?'Вы победили! ':G.mode==='net'?'Победил соперник. ':'Победил компьютер. '):'')+'Победа: '+sideHtml(w.winner):'Ничья'}</h2><p>${w.why}</p>
     <div class="btns" style="justify-content:center"><button class="pri" data-pri onclick="newGame();closeModal()">Новая игра</button><button onclick="closeModal()">Посмотреть доску</button></div></div>`);
 }
 
@@ -610,12 +620,16 @@ function showArmy(warn){
 function showMenu(warn){
   const opt=(k,v,t,d)=>`<button class="opt${OPTS[k]===v?' on':''}" onclick="OPTS.${k}='${v}';showMenu(${!!warn})">${t}${d?`<small>${d}</small>`:''}</button>`;
   modal(`<h2 class="center">Новая игра</h2>
-    <div class="menu"><div class="mrow"><b>Режим</b>${opt('mode','pvp','👥 На двоих','за одним экраном')}${opt('mode','cpu','🤖 С компьютером','один игрок')}</div>
+    <div class="menu"><div class="mrow"><b>Режим</b>${opt('mode','pvp','👥 На двоих','за одним экраном')}${opt('mode','cpu','🤖 С компьютером','один игрок')}${opt('mode','net','🌐 По сети','на двух компьютерах')}</div>
     ${OPTS.mode==='cpu'?`<div class="mrow"><b>Ваша сторона</b>${opt('human','dawn','☀️ Орден Зари','ходит первым')}${opt('human','ash','🔥 Клан Пепла','ходит вторым')}</div>
     <div class="mrow"><b>Сложность</b>${Object.entries(DIFF).map(([k,d])=>opt('diff',k,d.n,d.d)).join('')}</div>`:''}</div>
     <div class="mrow"><b>Армии</b><button class="opt on" onclick="showArmy(${!!warn})">⚔ Выбрать бойцов<small>Заря: ${armyTxt('dawn')} · Пепел: ${armyTxt('ash')}</small></button></div>
-    ${warn?'<p class="center mut">Текущая партия будет потеряна.</p>':''}
-    <div class="btns" style="justify-content:center"><button class="pri" data-pri onclick="closeModal();newGame()">Начать (Пробел)</button>${G?'<button onclick="closeModal()">Отмена</button>':''}</div>`);
+    ${OPTS.mode==='net'&&!NET.guest?`<div class="mrow"><b>Ваша сторона</b>${opt('human','dawn','☀️ Орден Зари','ходит первым')}${opt('human','ash','🔥 Клан Пепла','ходит вторым')}</div>`:''}
+    ${OPTS.mode==='net'?`<p class="center mut">Один игрок создаёт комнату и называет код, второй входит по коду — с любого компьютера или планшета, где есть интернет. Армии выбирает создатель комнаты.</p>`:''}
+    ${warn&&!(OPTS.mode==='net'&&!netOn())?'<p class="center mut">Текущая партия будет потеряна.</p>':''}
+    <div class="btns" style="justify-content:center">${OPTS.mode!=='net'?'<button class="pri" data-pri onclick="closeModal();netOn()&&netClose();newGame()">Начать (Пробел)</button>'
+      :netOn()?(NET.host?'<button class="pri" data-pri onclick="closeModal();newGame()">Новая партия по сети</button>':'<span class="mut" style="align-self:center">Новую партию начинает создатель комнаты.</span>')+'<button onclick="netClose()">Отключиться</button>'
+      :'<button class="pri" data-pri onclick="netHost()">🌐 Создать комнату</button><button onclick="showJoin()">🔑 Войти по коду</button>'}${G?'<button onclick="closeModal()">Отмена</button>':''}</div>`);
 }
 function showRules(){
   modal(`<h2>Правила «Сшибки»</h2>
@@ -629,6 +643,7 @@ function showRules(){
     <li><b>Бонусы</b> иногда появляются на арене — подберите, пробежав по ним: ${Object.values(BONUS).map(b=>`<b>${b.n}</b> — ${b.d}`).join('; ')}.</li>
     <li><b>Уровни</b> (только у пешек — Ратников, Лучниц, Пепельников и Гоблинов): пешка-победитель получает новый уровень (до ★${MAXLVL}): +15% здоровья, +12% урона, +5% скорости и −6% к перезарядке умений за каждый. Уровень виден звёздочкой на фигуре.</li>
     <li><b>Режимы</b>: «Новая игра» → <b>на двоих</b> за одним экраном или <b>с компьютером</b>: выберите сторону и сложность (лёгкий, средний, сложный). С компьютером поединок показывается на весь экран, управлять можно любыми клавишами (WASD или стрелки), геймпадом или касаниями.</li>
+    <li><b>По сети</b>: «Новая игра» → «По сети». Один игрок создаёт комнату и называет 5-буквенный код, второй на своём компьютере или планшете жмёт «Войти по коду». Каждый ходит своей стороной, а в поединке весь экран — свой. Нужен интернет; вкладку создателя лучше не сворачивать — игра считается у него.</li>
     <li><b>Приёмы в бою</b>: ← → удар — удар ×2; ← → ← → удар — ×4; ← ↑ → ↓ удар — ×5; ← → умение — блок на 1,5 с. Все приёмы тратят выносливость. Направления — клавиши движения, стик или крестовина геймпада; набрать за 2 с.</li>
     <li><b>Выносливость</b> (голубая полоса): свежий боец бегает на 20% быстрее, на бегу устаёт, а выдохшись — ходит на 30% медленнее; стоя на месте отдыхает. Бонус <b>«Второе дыхание»</b> восстанавливает её мгновенно — так можно догнать убегающего.</li>
     <li><b>Сильные стрелки</b> (Светоч, Владыка, Эльф, Чародейка, Некромант) бьют через всю арену — снаряд летит, пока не попадёт.</li>
@@ -706,7 +721,7 @@ function mkMini(ter,zones,obs,portals,pool){
   if(pool){m.fillStyle='#7df';m.beginPath();m.arc(pool.x*k,pool.y*k,pool.r*k,0,7);m.fill()}
   return mm}
 function hitObs(o){
-  if(!o||o.gone)return;o.hp=(o.hp??OBS_HP[o.kind]??3)-1;o.flash=.15;const c=OBS_COL[o.kind]||['#888','#555'];
+  if(!o||o.gone)return;D.obsV=(D.obsV||0)+1;o.hp=(o.hp??OBS_HP[o.kind]??3)-1;o.flash=.15;const c=OBS_COL[o.kind]||['#888','#555'];
   burst(o.x,o.y,c[0],8,160);snd(o.kind==='oak'||o.kind==='pine'?180:120,.08,'square',.04,.6);
   if(o.hp<=0){o.gone=true;D.obs=D.obs.filter(x=>x!==o);burst(o.x,o.y,c[0],26,280);burst(o.x,o.y,c[1],18,220);boom(o.x,o.y,o.r*2.4);D.shake=Math.max(D.shake,5);D.nav=null;D.miniDirty=true;snd(90,.3,'sawtooth',.06,.5)}
 }
@@ -807,15 +822,17 @@ function genArena(ter){
     mobs.push({k:L.mob,T,x,y,r:T.r,hp:T.hp,max:T.hp,cd:0,face:rnd(0,7),home:{x,y},vx:0,vy:0,flash:0,walk:0,dead:false})}}
   return {zones,obs,portals,pool,mobs,loc:L,spawn:[s0,s1],mini:mkMini(ter,zones,obs,portals,pool)};
 }
-function startDuel(att,def){
+function startDuel(att,def,ar0){
   const ter=G.terr[def.r][def.c];
   const dawnU=att.side==='dawn'?att:def,ashU=att.side==='ash'?att:def;
-  const ar=genArena(ter),[s0,s1]=ar.spawn,a=Math.atan2(s1.y-s0.y,s1.x-s0.x);
+  const ar=ar0||genArena(ter),[s0,s1]=ar.spawn,a=Math.atan2(s1.y-s0.y,s1.x-s0.x);
   D0ter=ter;D={att,def,ter,cell:{r:def.r,c:def.c},bonus:[],bonusT:3,fires:[],f:[mkFighter(dawnU,0,s0,a,ashU),mkFighter(ashU,1,s1,a+Math.PI,dawnU)],proj:[],fx:[],parts:[],floats:[],traps:[],totems:[],later:[],
      ...ar,t:0,limit:LIMIT,phase:'intro',cdT:0,endT:0,timeout:false,shake:0};
-  D.solo=G.mode==='cpu';
+  D.net=G.mode==='net'&&netOn();D.solo=G.mode==='cpu'||D.net;NET.shown=false;NET.rdyMe=NET.rdyThem=false;
+  if(D.net)for(const f of D.f)f.away=f.side!==NET.side;
+  if(D.net&&NET.host)netSend({t:'duel',a:att.id,d:def.id,ar:{zones:ar.zones,obs:ar.obs,portals:ar.portals,pool:ar.pool,mobs:ar.mobs,loc:ar.loc.k,spawn:ar.spawn}});
   if(D.solo)for(const f of D.f)if(isCpu(f.side)){const P=DIFF[G.diff];f.ai={P,t:.3,side:Math.random()<.5?1:-1,dir:[0,0],a:false,b:false,stuck:0,stuckT:0,lx:f.x,ly:f.y};f.dmgK*=P.dmg;f.spd*=P.spd}
-  document.body.classList.toggle('solo',D.solo);document.querySelectorAll('.th').forEach(th=>th.style.display=D.solo&&D.f[+th.dataset.i].ai?'none':'');
+  document.body.classList.toggle('solo',D.solo);document.querySelectorAll('.th').forEach(th=>th.style.display=D.solo&&other(D.f[+th.dataset.i])?'none':'');
   document.getElementById('duel').classList.add('on');fitCanvas();
   touchReset();document.querySelectorAll('.th').forEach(th=>{const f=D.f[+th.dataset.i];th.querySelectorAll('.tb').forEach(b=>b.querySelector('span').textContent=f.T.ab[b.dataset.k==='a'?0:1].n)});
   snd(196,.25,'sawtooth',.05,.5);
@@ -823,14 +840,14 @@ function startDuel(att,def){
     <div style="font-size:20px;font-weight:700">${f.shade?TYPES[f.u.t].name+' → '+f.T.name:f.T.name}${f.u===att?' <span class="mut">(нападает)</span>':''}</div>
     ${f.shade?'<div class="mut">Перевёртыш становится тёмной копией противника</div>':''}${f.T.note?`<div class="mut">${f.T.note}</div>`:''}${f.home?'<div style="color:#9f9">🏠 Родная земля: +25% урона, +15% скорости, −15% урона по нему</div>':''}
     <div>Здоровье ${Math.ceil(f.hp)} / ${f.max} · ${f.ground?'наземный':'летает'} · <b>ур. ${f.lvl}</b>${f.lvl>1?` <span class="mut">(${lvlTxt(f.u)})</span>`:''}</div>
-    ${f.T.ab.map((a,i)=>`<div style="margin-top:6px">${f.ai?'':D.solo?`<kbd>${i?'G':'F'}</kbd>/<kbd>${i?'/':'.'}</kbd>`:`<kbd>${i?k.kb:k.ka}</kbd>`} <b>${a.n}</b> <span class="mut">— ${a.d}</span></div>`).join('')}
-    <div class="keys">${f.ai?`🤖 Компьютер · ${DIFF[G.diff].n.toLowerCase()} уровень`:D.solo?'Движение: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> или стрелки, геймпад, на планшете — палец':`Движение: ${p?'стрелки · правая половина экрана':'<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · левая половина экрана'}`}</div></div>`};
+    ${f.T.ab.map((a,i)=>`<div style="margin-top:6px">${other(f)?'':D.solo?`<kbd>${i?'G':'F'}</kbd>/<kbd>${i?'/':'.'}</kbd>`:`<kbd>${i?k.kb:k.ka}</kbd>`} <b>${a.n}</b> <span class="mut">— ${a.d}</span></div>`).join('')}
+    <div class="keys">${f.ai?`🤖 Компьютер · ${DIFF[G.diff].n.toLowerCase()} уровень`:f.away?'🌐 Соперник по сети':D.solo?'Движение: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> или стрелки, геймпад, на планшете — палец':`Движение: ${p?'стрелки · правая половина экрана':'<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · левая половина экрана'}`}</div></div>`};
   modal(`<h2 class="center">Поединок · арена: ${D.loc.n}</h2>${D.loc.live?`<p class="center" style="color:#ffc27a">⚠ ${D.loc.live}</p>`:''}
     <div class="vs">${card(D.f[0])}<div class="mid">⚔</div>${card(D.f[1])}</div>
     <p class="center mut">Арена в 16 экранов: ищите врага по стрелке у края и мини-карте. Болото замедляет, лава жжёт наземных, портал в центре понемногу лечит (раз в 30 с). Иногда появляются бонусы: <b>ускорение</b>, <b>жизнь</b>, <b>суперзащита</b> и <b>сила</b>.${ter==='well'?' В центре — целебный родник.':''}</p>
     <div class="btns" style="justify-content:center;margin-top:10px"><button class="pri" data-pri onclick="beginFight()">В бой! (Пробел)</button></div>`);
 }
-function beginFight(){closeModal();if(!D)return;D.phase='count';D.cdT=2.4;snd(440,.1,'square',.04)}
+function beginFight(){if(D&&D.net){netReady();return}closeModal();if(!D)return;D.phase='count';D.cdT=2.4;snd(440,.1,'square',.04)}
 
 const ad=(a,b)=>{let d=(a-b)%(Math.PI*2);if(d>Math.PI)d-=Math.PI*2;if(d<-Math.PI)d+=Math.PI*2;return Math.abs(d)};
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -981,7 +998,7 @@ function updFighter(f,dt){
     if(Math.random()<.3)D.parts.push({x:f.x+rnd(-f.r,f.r),y:f.y+f.r*.5,vx:0,vy:-60,life:.6,max:.6,col:'#7ff',r:2.5});
     if(p.charge<=0){p.cd=PORTAL_CD;burst(p.x,p.y,'#6ff',20,160);snd(300,.3,'sine',.05,.5)}
     break}
-  const ctl=D.phase==='fight',inp=!ctl?{mx:0,my:0,a:false,b:false}:f.ai?aiCtl(f,dt):readIn(D.solo?[0,1]:[f.idx]);
+  const ctl=D.phase==='fight',inp=!ctl?{mx:0,my:0,a:false,b:false}:f.ai?aiCtl(f,dt):f.away?netIn():readIn(D.solo?[0,1]:[f.idx]);
   let mx=inp.mx,my=inp.my;
   if(f.dashT>0){
     const st=Math.min(dt,f.dashT);f.dashT-=dt;f.x+=f.dvx*st;f.y+=f.dvy*st;
@@ -1204,7 +1221,7 @@ function showDuelResult(){
   modal(`<div class="center">${h}<button class="pri" data-pri onclick="finishDuel()">К доске (Пробел)</button></div>`);
 }
 function finishDuel(){
-  closeModal();if(!D)return;
+  closeModal();if(!D||D.net&&NET.guest)return;
   const {att,def,cell}=D,fa=D.f.find(f=>f.u===att),fd=D.f.find(f=>f.u===def);
   att.hp=fa.dead?0:Math.min(maxHp(att),Math.max(1,Math.ceil(fa.hp)));def.hp=fd.dead?0:Math.min(maxHp(def),Math.max(1,Math.ceil(fd.hp)));
   const winner=fd.dead&&!fa.dead?att:fa.dead&&!fd.dead?def:null;
@@ -1383,10 +1400,10 @@ function drawHud(f){
     if(cdp>0){ctx.fillStyle='#000a';rr(ax,ay,w*cdp,18,4);ctx.fill()}
     else{ctx.strokeStyle=f.col;ctx.lineWidth=1;rr(ax,ay,w,18,4);ctx.stroke()}
     ctx.fillStyle=cdp>0?'#888':'#fff';ctx.font='12px Georgia,serif';ctx.textAlign='left';
-    ctx.fillText(f.ai?ab.n:`[${D.solo?(i?'G':'F'):i?k.kb:k.ka}] ${ab.n}`,ax+6,ay+9.5);
+    ctx.fillText(other(f)?ab.n:`[${D.solo?(i?'G':'F'):i?k.kb:k.ka}] ${ab.n}`,ax+6,ay+9.5);
   }
   // предупреждение о местности (в одиночной игре — только своё, по центру экрана)
-  if(D.solo&&f.ai)return;const wc=D.solo?W/2:x0+HALF/2,wl=D.solo?12:x0+12;
+  if(D.solo&&other(f))return;const wc=D.solo?W/2:x0+HALF/2,wl=D.solo?12:x0+12;
   const z=f.zone==='lava'?['ЛАВА!','#ff7a2a']:f.zone==='swamp'?['болото','#9bbf6a']:null;
   const bf=[['speed',f.hasteT],['shield',f.shieldT],['power',f.powerT]].filter(b=>b[1]>0);
   bf.forEach(([k,t],j)=>{const bx=wc+(j-(bf.length-1)/2)*48,by=HUD+58;sprite(IMG['bn_'+k],bx,by,40,0);
@@ -1397,7 +1414,7 @@ function drawHud(f){
 function draw(){
   if(D.miniDirty){D.mini=mkMini(D.ter,D.zones,D.obs,D.portals,D.pool);D.miniDirty=false}
   ctx.save();ctx.clearRect(0,0,W,H);
-  const me=D.solo&&D.f.find(f=>!f.ai);
+  const me=D.solo&&D.f.find(f=>!other(f));
   if(me)drawWorld({idx:me.idx,x:0,y:HUD,w:W,h:H-HUD,cx:me.x,cy:me.y});
   else for(const f of D.f)drawWorld({idx:f.idx,x:f.idx*HALF,y:HUD,w:HALF,h:H-HUD,cx:f.x,cy:f.y});
   for(const f of D.f)drawHud(f);
@@ -1441,8 +1458,8 @@ function curInfo(){
   if(G.sel&&hoverU&&hoverU.side!==G.sel.side&&movesOf(G.sel).some(m=>m.r===G.cur.r&&m.c===G.cur.c))showInfo(G.sel,hoverU);
 }
 function boardPad(){
-  if(!G||D||G.over||G.busy||isCpu(G.turn)||ovl.classList.contains('on'))return;
-  const side=SIDES[G.turn].p,i=G.mode==='cpu'?(PADS[0]?0:PADS[1]?1:-1):PADS[side]?side:PADS[1-side]?1-side:-1;if(i<0)return;
+  if(!G||D||G.over||G.busy||isCpu(G.turn)||G.mode==='net'&&G.turn!==NET.side||ovl.classList.contains('on'))return;
+  const side=SIDES[G.turn].p,i=G.mode==='cpu'||G.mode==='net'?(PADS[0]?0:PADS[1]?1:-1):PADS[side]?side:PADS[1-side]?1-side:-1;if(i<0)return;
   const p=PADS[i],B=n=>!!p.buttons[n]?.pressed,st=padRep[i],now=performance.now();
   if(G.padUsed&&G.curTurn!==G.turn){G.cur=homeCur();G.curTurn=G.turn;curInfo()}
   let dc=0,dr=0;const ax=p.axes[0]||0,ay=p.axes[1]||0;
@@ -1498,6 +1515,123 @@ document.querySelectorAll('.th').forEach(th=>{
 });
 function touchReset(){tptr.clear();touchSync();document.querySelectorAll('.stick').forEach(s=>s.style.display='none');document.querySelectorAll('.tb.on').forEach(b=>b.classList.remove('on'))}
 
+// ---------- Игра по сети: комната по коду, WebRTC через PeerJS ----------
+// создатель комнаты (host) считает всё: доску и поединки; гость шлёт ходы и нажатия, получает снимки боя
+function netLoad(){return window.Peer?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement('script');
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js';s.onload=ok;s.onerror=()=>no(new Error('net'));document.head.appendChild(s)})}
+const netRep=(k,v)=>{if(D&&D.f){if(v===D.f[0])return {$f:0};if(v===D.f[1])return {$f:1}}
+  if(typeof v==='number')return Math.round(v*100)/100;
+  if(k==='T'||k==='u'||k==='ai'||k==='seq'||k==='away'||k==='att'||k==='def'||(k==='home'&&v&&typeof v==='object'))return undefined;return v};
+function netSend(m){if(netOn())try{NET.conn.send(JSON.stringify(m,netRep))}catch(e){console.error('net',e)}}
+function netMsg(raw){
+  const m=JSON.parse(raw,(k,v)=>v&&typeof v==='object'&&'$f' in v?(D?D.f[v.$f]:null):v);
+  if(m.t==='hello'){NET.side=m.side;G.mode='net';G.human=m.side;closeModal();
+    modal(`<div class="center"><h2>🌐 Подключено!</h2><p>Вы играете за ${sideHtml(m.side)}. ${m.side==='dawn'?'Вы ходите первым.':'Первым ходит соперник.'}</p>
+      <p class="mut">Новую партию начинает создатель комнаты. В поединке — весь экран ваш: WASD или стрелки, F/G или ./ , геймпад, касания.</p>
+      <button class="pri" data-pri onclick="closeModal()">К доске (Пробел)</button></div>`)}
+  else if(m.t==='sync')netSync(m.g);
+  else if(m.t==='move')NET.moves.push(m);
+  else if(m.t==='duel'){NET.duelMsg=m;netTryDuel()}
+  else if(m.t==='ready'){NET.rdyThem=true;if(NET.host&&NET.rdyMe)netGo()}
+  else if(m.t==='i'){NET.rq.push(m);while(NET.rq.length>4)NET.rq.shift()}
+  else if(m.t==='s')netApply(m);
+}
+function netWire(c){
+  NET.conn=c;
+  c.on('data',d=>{try{netMsg(d)}catch(e){console.error(e)}});
+  c.on('close',netDrop);c.on('error',netDrop);
+}
+function netDrop(){
+  if(!NET.host&&!NET.guest)return;const wasGuest=NET.guest;
+  NET.host=NET.guest=false;NET.conn=null;try{NET.peer&&NET.peer.destroy()}catch(e){}NET.peer=null;
+  if(G&&G.mode==='net'){G.mode='pvp';G.human='dawn'}
+  if(D){if(wasGuest){D=null;document.getElementById('duel').classList.remove('on');keys.clear();touchReset()}
+    else{D.net=false;D.solo=false;for(const f of D.f)f.away=false;document.body.classList.remove('solo');document.querySelectorAll('.th').forEach(th=>th.style.display='')}}
+  if(G){G.busy=false;render()}
+  modal(`<div class="center"><h2>Связь потеряна</h2><p>Соперник отключился. Партию можно доиграть за одним экраном — вдвоём.</p><button class="pri" data-pri onclick="closeModal()">Понятно</button></div>`);
+}
+function netClose(){const c=NET.conn;NET.host=NET.guest=false;NET.conn=null;try{c&&c.close()}catch(e){}try{NET.peer&&NET.peer.destroy()}catch(e){}NET.peer=null;
+  if(G&&G.mode==='net'){G.mode='pvp';render()}closeModal()}
+const netErr=e=>({'peer-unavailable':'Комната не найдена — проверьте код.','network':'Нет связи с сервером подключения.','server-error':'Сервер подключения недоступен.','browser-incompatible':'Этот браузер не умеет WebRTC.'}[e&&e.type]||'Не удалось подключиться'+(e&&e.type?` (${e.type})`:'')+'.');
+function netFail(t){try{NET.peer&&NET.peer.destroy()}catch(e){}NET.peer=null;NET.host=NET.guest=false;
+  modal(`<div class="center"><h2>Сеть</h2><p>${t}</p><div class="btns" style="justify-content:center"><button class="pri" data-pri onclick="showMenu()">Назад</button></div></div>`)}
+async function netHost(){
+  modal('<div class="center"><h2>🌐 Создаём комнату…</h2></div>');
+  try{await netLoad()}catch(e){return netFail('Нет интернета: для игры по сети он нужен.')}
+  const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',code=[...Array(5)].map(()=>A[Math.random()*A.length|0]).join('');
+  NET.code=code;NET.host=true;NET.guest=false;const p=NET.peer=new Peer('sshibka-'+code.toLowerCase());
+  p.on('open',()=>modal(`<div class="center"><h2>🌐 Комната создана</h2><p>Скажите сопернику код:</p><div class="code">${code}</div>
+    <p class="mut">Он открывает игру у себя → «Новая игра» → «По сети» → «Войти по коду». Вы играете за ${sideHtml(OPTS.human)}.</p>
+    <p class="mut">⏳ Ждём подключения…</p><div class="btns" style="justify-content:center"><button onclick="netClose()">Отмена</button></div></div>`));
+  p.on('error',e=>{if(e.type==='unavailable-id'){try{p.destroy()}catch(_){}netHost()}else if(!netOn())netFail(netErr(e))});
+  p.on('connection',c=>{if(netOn()){c.close();return}
+    c.on('open',()=>{netWire(c);NET.side=OPTS.human;snd(660,.1,'triangle',.05);
+      netSend({t:'hello',side:OPTS.human==='dawn'?'ash':'dawn'});closeModal();newGame()})});
+}
+async function netJoin(){
+  const code=(document.getElementById('netCode')?.value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(code.length<4){document.getElementById('netCode')?.focus();return}
+  modal('<div class="center"><h2>🌐 Подключаемся…</h2><div class="btns" style="justify-content:center"><button onclick="netClose();showMenu()">Отмена</button></div></div>');
+  try{await netLoad()}catch(e){return netFail('Нет интернета: для игры по сети он нужен.')}
+  NET.guest=true;NET.host=false;const p=NET.peer=new Peer();
+  setTimeout(()=>{if(NET.peer===p&&!netOn())netFail('Не удалось соединиться за 20 секунд. Проверьте код и интернет; иногда помогает другая сеть (например, раздача с телефона) — строгие офисные сети соединение не пропускают.')},20000);
+  p.on('open',()=>{const c=p.connect('sshibka-'+code.toLowerCase(),{reliable:true});c.on('open',()=>{netWire(c);snd(660,.1,'triangle',.05)})});
+  p.on('error',e=>{if(!netOn())netFail(netErr(e))});
+}
+function showJoin(){modal(`<div class="center"><h2>🌐 Войти в комнату</h2><p>Введите код, который назвал соперник:</p>
+  <input id="netCode" class="codein" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter')netJoin()">
+  <div class="btns" style="justify-content:center;margin-top:10px"><button class="pri" onclick="netJoin()">Войти</button><button onclick="showMenu()">Назад</button></div></div>`);
+  setTimeout(()=>document.getElementById('netCode')?.focus(),50)}
+// доска у гостя: состояние приходит от создателя
+function netSync(g){
+  if(G.busy||NET.duelMsg||NET.moves.length){NET.pend=g;return}NET.pend=null;
+  if(D){D=null;document.getElementById('duel').classList.remove('on');keys.clear();touchReset();closeModal()}
+  const was=G.over;Object.assign(G,g,{sel:null,mode:'net',human:NET.side});save();render();if(G.over&&!was)showOver();
+}
+function netTick(){ // каждый кадр: отложенные ходы и состояние
+  if(!G||G.busy)return;
+  if(NET.moves.length&&!D){const m=NET.moves.shift(),u=G.units.find(x=>x.id===m.id),mv=u&&movesOf(u).find(x=>x.r===m.r&&x.c===m.c);
+    if(mv&&u.side!==NET.side&&G.turn===u.side){G.sel=null;doMove(u,mv)}}
+  else if(NET.pend&&!NET.moves.length)netSync(NET.pend);
+}
+function netTryDuel(){
+  const m=NET.duelMsg;if(!m||!NET.animDone)return;NET.duelMsg=null;NET.animDone=false;
+  const a=G.units.find(u=>u.id===m.a),d=G.units.find(u=>u.id===m.d);if(!a||!d)return;
+  const ter=G.terr[d.r][d.c],ar=m.ar;ar.mobs.forEach(x=>x.T=MOBS[x.k]);ar.loc=LOCS[ter].find(l=>l.k===ar.loc)||LOCS[ter][0];
+  ar.mini=mkMini(ter,ar.zones,ar.obs,ar.portals,ar.pool);startDuel(a,d,ar);
+}
+// поединок: оба жмут «В бой», начинает создатель
+function netGo(){NET.rdyMe=NET.rdyThem=false;closeModal();if(!D)return;D.phase='count';D.cdT=2.4;snd(440,.1,'square',.04)}
+function netReady(){NET.rdyMe=true;netSend({t:'ready'});const b=ovc.querySelector('[data-pri]');if(b){b.textContent='⏳ Ждём соперника…';b.disabled=true;b.removeAttribute('data-pri')}
+  if(NET.host&&NET.rdyThem)netGo()}
+function netIn(){const m=NET.rq.shift();if(m)NET.rin={mx:m.mx||0,my:m.my||0,a:!!m.a,b:!!m.b};return NET.rin}
+function netSnap(dt){
+  NET.snapT+=dt;if(NET.snapT<1/30)return;NET.snapT=0;
+  const lite=f=>{const o={};for(const k in f)if(!['u','T','ai','seq','away','prevA','prevB','prevDir','prevV'].includes(k))o[k]=f[k];return o};
+  const parts=D.parts.filter(p=>!p.s);parts.forEach(p=>p.s=1);
+  const s={t:'s',d:{t:D.t,phase:D.phase,cdT:D.cdT,endT:D.endT,timeout:D.timeout,shake:D.shake},f:D.f.map(lite),proj:D.proj,fx:D.fx,floats:D.floats,fires:D.fires,
+    traps:D.traps,totems:D.totems,bonus:D.bonus,mobs:D.mobs,portals:D.portals,parts,sq:NET.sq};
+  if((D.obsV||0)!==NET.obsSent){s.obs=D.obs;NET.obsSent=D.obsV||0}
+  NET.sq=[];netSend(s);
+}
+function netApply(s){
+  if(!D||!NET.guest)return;const ph=D.phase;
+  Object.assign(D,s.d);s.f.forEach((x,i)=>Object.assign(D.f[i],x));
+  for(const k of ['proj','fx','floats','fires','traps','totems','bonus','portals'])D[k]=s[k];
+  s.mobs.forEach(m=>m.T=MOBS[m.k]);D.mobs=s.mobs;D.parts.push(...s.parts);
+  if(s.obs){D.obs=s.obs;D.miniDirty=true}
+  for(const a of s.sq)sndRaw(...a);
+  if(ph==='intro'&&D.phase!=='intro'){NET.rdyMe=NET.rdyThem=false;closeModal()}
+  if(D.phase==='done'&&!NET.shown){NET.shown=true;showDuelResult()}
+}
+function netGuestTick(dt){ // гость: своё нажатие — создателю, частицы и вспышки — сам
+  const r=readIn([0,1]),k=[r.mx.toFixed(2),r.my.toFixed(2),+r.a,+r.b].join();NET.inT+=dt;
+  if(k!==NET.lastIn||NET.inT>.25){NET.lastIn=k;NET.inT=0;netSend({t:'i',mx:r.mx,my:r.my,a:r.a,b:r.b})}
+  for(const p of D.parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;if(!p.fire){p.vx*=.9;p.vy*=.9}}D.parts=D.parts.filter(p=>p.life>0);
+  for(const x of D.fx)x.t+=dt;for(const x of D.floats){x.t+=dt;x.y-=40*dt}
+  for(const o of D.obs)if(o.flash)o.flash=Math.max(0,o.flash-dt);
+}
+
 // ---------- Установка как приложения ----------
 let instEvt=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();instEvt=e;document.getElementById('instBtn').style.display=''});
@@ -1513,7 +1647,8 @@ let lastT=performance.now();
 function loop(now){
   const dt=Math.min(.033,(now-lastT)/1000);lastT=now;
   pollPads();boardPad();
-  if(D){update(dt);if(D)draw()}
+  if(D){if(D.net&&NET.guest)netGuestTick(dt);else update(dt);if(D){if(D.net&&NET.host)netSnap(dt);draw()}}
+  if(G&&G.mode==='net')netTick();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
