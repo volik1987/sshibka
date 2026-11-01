@@ -46,7 +46,7 @@ onload=null;
   for(const k of ['KeyA','KeyD']){H(`keys.add('${k}')`);await sl(80);H(`keys.delete('${k}')`);await sl(80)}
   H("D.f[0].face=0;D.f[0].x=D.f[1].x-40;D.f[0].y=D.f[1].y;keys.add('KeyF')");await sl(120);H("keys.delete('KeyF')");await sl(500);
   L(`combo hit: guest hp on host ${H("D.f[1].hp").toFixed(1)}, on guest ${Gq("D.f[1].hp").toFixed(1)}; guest floats: ${Gq("D.floats.map(f=>f.txt||f.t).length")}`);
-  L('guest got sounds/parts: parts '+Gq("D.parts.length"));
+  L('dbg '+H("JSON.stringify({fl:D.floats.map(x=>x.txt||x.s||x.text),cd:D.f[0].cd,st:D.f[0].st,d:Math.hypot(D.f[0].x-D.f[1].x,D.f[0].y-D.f[1].y),face:D.f[0].face,fx:D.fx.map(x=>x.k)})"));L('guest got sounds/parts: parts '+Gq("D.parts.length"));
   L('max snapshot bytes '+H("__mx"));
   // гость нажимает удар — проверка, что хозяин его исполняет
   const cd=H("D.f[1].cd[0]");Gq("keys.add('KeyF')");await sl(250);Gq("keys.delete('KeyF')");await sl(200);L('guest attack fired on host: '+(H("D.f[1].cd[0]")>0));
@@ -56,6 +56,18 @@ onload=null;
   Gq("finishDuel()");await sl(300);L('guest still waits: '+Gq("!!D"));
   H("finishDuel()");
   L('back to board both: '+await until(()=>!H("D")&&!Gq("D")&&!H("G.busy")&&same()&&H("G.turn")==='ash',10000)+' units '+H("G.units.length")+' last log: '+Gq("G.log[0].replace(/<[^>]+>/g,'')"));
+  // поединок королей по сети: хозяин — Заря (Архангел), гость — Пепел (Демон)
+  H("const a=G.units.find(u=>u.t==='arhangel'),d=G.units.find(u=>u.t==='demon');startDuel(d,a)");await sl(300);Gq("NET.animDone=true;netTryDuel()");
+  L('kings both: '+await until(()=>H("D&&D.kings")&&Gq("D&&D.kings"),5000));
+  H("beginFight()");Gq("beginFight()");L('kings fight: '+await until(()=>H("D.phase")==='fight'&&Gq("D.phase")==='fight',8000));
+  H("D.f[0].x=500;D.f[1].x=640");await sl(200);const kh=H("D.f[0].hp");
+  Gq("keys.add('KeyF')");await sl(150);Gq("keys.delete('KeyF')");await sl(600);L(`guest strike on host: ${(kh-H("D.f[0].hp")).toFixed(1)}, guest sees ${(kh-Gq("D.f[0].hp")).toFixed(1)}`);
+  H("D.f[0].hp=1;D.f[1].stun=0;D.f[1].atk=null;D.f[0].x=500;D.f[1].x=640");await sl(100);Gq("keys.add('KeyF')");await sl(150);Gq("keys.delete('KeyF')");
+  L('finish phase: '+await until(()=>H("D.phase")==='finish'&&Gq("D.phase")==='finish',3000));
+  for(const k of ['KeyS','KeyS','KeyW','KeyG']){Gq(`keys.add('${k}')`);await sl(110);Gq(`keys.delete('${k}')`);await sl(110)}
+  L('fatal: '+await until(()=>H("D.phase")==='fatal',2000)+' '+H("D.fin&&D.fin.n")+' guest banner '+Gq("D.banner&&D.banner.txt"));
+  L('kings result: '+await until(()=>H("D&&D.phase")==='done'&&Gq("D&&D.phase")==='done',9000)+' '+Gq("ovc.innerText.slice(0,30).replace(/\\n/g,' ')"));
+  H("finishDuel()");L('kings back: '+await until(()=>!H("D")&&!Gq("D")&&same(),8000)+' archangel alive '+H("!!G.units.find(u=>u.t==='arhangel')"));
   // обрыв связи
   H("NET.conn.close()");L('guest drop: '+await until(()=>Gq("G.mode")==='pvp'&&Gq("ovc.innerText").includes('Связь потеряна'),8000));
 }catch(e){L('ERR '+e.message+e.stack)}

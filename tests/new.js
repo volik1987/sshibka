@@ -21,6 +21,8 @@ try{
     a.face=0;a.x=1000;a.y=1000;e.x=1050;e.y=1000;keys.add(btn);step(2);const bl=a.blockT;keys.delete(btn);step(60);return {dmg:9999-e.hp,st:a.st,block:bl}};
   const base=combo('','KeyF');L('base dmg '+base.dmg.toFixed(1));
   for(const [s,b] of [['lr','KeyF'],['lrlr','KeyF'],['lurd','KeyF'],['lr','KeyG']]){const r=combo(s,b);L(`${s}+${b}: dmg ${r.dmg.toFixed(1)} st ${r.st.toFixed(0)} block ${r.block.toFixed(2)}`)}
+  for(const k of ['KeyE','KeyR','KeyT','KeyQ','KeyU']){const r=combo('',k);L(`btn ${k}: dmg ${r.dmg.toFixed(1)} st ${r.st.toFixed(0)} block ${r.block.toFixed(2)}`)}
+  {duel('ratnik','ratnik');D.obs=[];D.mobs=[];const a=D.f[0];a.x=1000;a.y=1000;a.face=0;D.f[1].x=2300;D.f[1].y=2300;keys.add('ShiftLeft');step(2);keys.delete('ShiftLeft');step(20);L(`dash moved ${(a.x-1000).toFixed(0)} st ${a.st.toFixed(0)}`)}
   // дальний снаряд
   duel('elf','ratnik');D.obs=[];D.mobs=[];f=D.f[0];f.x=200;f.y=1280;f.face=0;D.f[1].x=2400;D.f[1].y=1280;D.f[1].hp=D.f[1].max=999;use(f,1);const pl=D.proj[0]&&D.proj[0].life;step(300);L(`far life ${pl} hit far enemy: ${(999-D.f[1].hp).toFixed(1)}`);
   // разрушение
@@ -34,8 +36,8 @@ try{
   let mk=0,mh=0;for(let t=0;t<20&&!mk;t++){duel('ratnik','ratnik','plain');if(D.mobs.length){mk=D.mobs.length;const m=D.mobs[0];f=D.f[0];f.x=m.x-60;f.y=m.y;f.face=0;const hp0=f.hp;step(240);mh=hp0-f.hp;
     let k=0;while(!m.dead&&k<20){f.x=m.x-50;f.y=m.y;f.face=0;f.cd[0]=0;use(f,0);step(30);k++}L(`mobs ${mk} (${D.loc.n}) hurt me ${mh.toFixed(1)}, killed in ${k}: ${m.dead}`)}}
   // Мохнач
-  duel('mohnach','ratnik');D.obs=[];D.mobs=[];f=D.f[0];const e=D.f[1];f.x=1000;f.y=1000;f.face=0;e.x=1200;e.y=1000;e.hp=e.max=999;use(f,0);step(60);L('jump dmg '+(999-e.hp).toFixed(1));
-  e.x=1100;e.y=1000;e.vx=e.vy=0;const ex=e.x;use(f,1);step(30);L(`roar pushed ${(e.x-ex).toFixed(0)} dmg total ${(999-e.hp).toFixed(1)}`);
+  duel('mohnach','ratnik');D.obs=[];D.mobs=[];f=D.f[0];const e=D.f[1];f.x=1000;f.y=1000;f.face=0;e.x=1200;e.y=1000;e.hp=e.max=999;use(f,1);step(60);L('jump dmg '+(999-e.hp).toFixed(1)+' cd '+f.cd[1].toFixed(1));
+  e.x=1040;e.y=1000;f.x=1000;f.face=0;const h2=e.hp;use(f,0);step(30);L(`paw dmg ${(h2-e.hp).toFixed(1)}`);
   draw();L('draw ok');
 }catch(err){L('ERR '+err.message+' '+err.stack)}
 document.getElementById('out').textContent=out.join('\n')},500)
