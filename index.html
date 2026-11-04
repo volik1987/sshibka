@@ -1154,6 +1154,7 @@ function inSolid(x,y,r){for(const o of D.obs)if(!isHouse(o)&&Math.abs(x-o.x)<o.r
 function inObs(x,y,r){return D.obs.find(o=>Math.abs(x-o.x)<o.r+r&&Math.abs(y-o.y)<o.r+r&&Math.hypot(x-o.x,y-o.y)<o.r+r)}
 function inArena(x,y,r){return x>AR.x0+r&&x<AR.x1-r&&y>AR.y0+r&&y<AR.y1-r}
 function burst(x,y,col,n=10,sp=160){for(let i=0;i<n;i++){const a=rnd(0,7),s=rnd(.3,1)*sp;D.parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rnd(.25,.55),max:.55,col,r:rnd(1.5,3.5)})}}
+const projPow=p=>(p.dmg||0)*((p.owner&&p.owner.dmgK)||1); // сила снаряда для столкновений
 function floatTxt(x,y,txt,col){D.floats.push({x,y,txt,col,t:0})}
 function boom(x,y,size){if(D)D.fx.push({k:'boom',x,y,r:size,t:0,dur:.5})}
 function spawnBonus(){
@@ -1520,7 +1521,13 @@ function update(dt){
   }
   for(let i=0;i<D.proj.length;i++)for(let j=i+1;j<D.proj.length;j++){
     const p=D.proj[i],q=D.proj[j];if(p.done||q.done||p.owner===q.owner)continue;
-    if(Math.hypot(p.x-q.x,p.y-q.y)<p.r+q.r){if(!p.rock)p.done=true;if(!q.rock)q.done=true;burst((p.x+q.x)/2,(p.y+q.y)/2,'#fff',8,140)}
+    if(Math.hypot(p.x-q.x,p.y-q.y)<p.r+q.r){const mx=(p.x+q.x)/2,my=(p.y+q.y)/2;burst(mx,my,'#fff',8,140);
+      if(p.rock||q.rock){if(!p.rock)p.done=true;if(!q.rock)q.done=true;continue}
+      // столкновение снарядов: равные гасят друг друга, сильный сбивает слабый и летит дальше, потеряв часть силы
+      const a=projPow(p),b=projPow(q);
+      if(Math.abs(a-b)<=Math.max(a,b)*.1){p.done=q.done=true;continue}
+      const [w,l,wa,la]=a>b?[p,q,a,b]:[q,p,b,a];l.done=true;w.dmg*=(wa-la)/wa;w.r=Math.max(4,w.r*.9);
+      burst(mx,my,w.col||'#ffe04a',14,220);D.shake=Math.max(D.shake,3);snd(260,.1,'sawtooth',.05,.6)}
   }
   D.proj=D.proj.filter(p=>!p.done);
   for(const t of D.traps){t.arm-=dt;const e=enemyOf(t.owner);
