@@ -31,6 +31,11 @@ body.wide #app{grid-template-columns:var(--sw) auto var(--sw);grid-template-rows
 body.wide #sideL,body.wide #side{display:flex;flex-direction:column;gap:14px}
 body.wide #sideL{grid-area:sl} body.wide #side{grid-area:sr}
 body.wide #log{max-height:430px}
+/* панели не должны менять размер от содержимого — иначе появляется полоса прокрутки и доска прыгает */
+body:not(.narrow) #info{height:390px;overflow:auto;flex:0 0 auto}
+body.wide #sideL{min-height:0;overflow:hidden}
+body.wide #ctrlBox{flex:1 1 auto;min-height:0;overflow:auto}
+html{scrollbar-gutter:stable}
 body.narrow #app{grid-template-columns:auto;grid-template-areas:"board" "info" "ctrl" "log" "btns";justify-items:center}
 body.narrow #side>.box{width:min(100%,560px)}
 #left{display:flex;flex-direction:column;gap:10px;align-items:center}
@@ -1994,7 +1999,7 @@ addEventListener('blur',()=>keys.clear());
 // раскладка под экран: на широком — панели по бокам и всё крупнее, на узком — столбиком
 function fitApp(){
   const app=document.getElementById('app'),left=document.getElementById('left'),b=document.body;
-  const vw=innerWidth,vh=innerHeight,ratio=vw/vh;
+  const vw=document.documentElement.clientWidth||innerWidth,vh=innerHeight,ratio=vw/vh;
   const mode=vw<860&&ratio<1.15?'narrow':ratio>=1.5&&vw>=1100?'wide':'mid';
   b.classList.toggle('wide',mode==='wide');
   // на широком экране «Фигура» и «Управление» уходят в левую колонку
@@ -2008,6 +2013,7 @@ function fitApp(){
   else{z=Math.min(vh/bh,vw/(bw+48+2*sw+pad));sw=Math.min(620,Math.max(300,(vw/z-bw-48-pad)/2))}
   z=Math.max(.5,Math.min(2.4,z));
   app.style.setProperty('--sw',Math.floor(sw)+'px');app.style.zoom=z.toFixed(3);
+  sl.style.height=mode==='wide'?left.offsetHeight+'px':''; // левая колонка не выше доски
 }
 addEventListener('resize',()=>{fitApp();if(D)fitCanvas()});
 const hadSave=load();if(!hadSave)newGame(); else render();
