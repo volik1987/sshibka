@@ -157,7 +157,7 @@ kbd{display:inline-block;padding:0 6px;border:1px solid #fff6;border-bottom-widt
     <div class="box" id="ctrlBox"><h3>Управление в бою</h3>
       <div><span class="dawnc">Заря</span> (левая половина): <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>, <kbd>F</kbd> атака, <kbd>G</kbd> умение</div>
       <div style="margin-top:4px"><span class="ashc">Пепел</span> (правая половина): стрелки, <kbd>.</kbd> атака, <kbd>/</kbd> умение <span class="mut">(или <kbd>K</kbd><kbd>L</kbd>, Num1/2)</span></div>
-      <div style="margin-top:6px">💥 <b>Приёмы</b> <span class="mut">(тратят выносливость — голубая полоса под здоровьем)</span>: ← → удар — <b>×2</b> · ← → ← → удар — <b>×4</b> · ← ↑ → ↓ удар — <b>×5</b> · ← → умение — <b>блок</b> 1,5 с</div>
+      <div style="margin-top:6px">💥 <b>Приёмы</b> <span class="mut">(тратят выносливость — голубая полоса под здоровьем)</span>: наберите комбинацию — приём <b>заряжен</b> на 10 с (горит над бойцом и в табло), бегайте и бейте в нужный момент. ← → — <b>×2</b> · ← → ← → — <b>×4</b> · ← ↑ → ↓ — <b>×5</b> (срабатывают по удару) · ↓ ↑ — <b>блок</b> 1,5 с (срабатывает по умению)</div>
       <div style="margin-top:4px">⚡ <b>Кнопки приёмов</b>: <span class="dawnc">Заря</span> <kbd>E</kbd> ×2 · <kbd>R</kbd> ×4 · <kbd>T</kbd> ×5 · <kbd>Q</kbd> блок · <kbd>Shift</kbd> рывок; <span class="ashc">Пепел</span> <kbd>U</kbd> <kbd>I</kbd> <kbd>O</kbd> <kbd>J</kbd> правый <kbd>Shift</kbd> (или Num4/5/6/0/3). 🎮 <kbd>R1</kbd> ×2 · <kbd>R2</kbd> ×4 · <kbd>△</kbd> ×5 · <kbd>L1</kbd> блок · <kbd>L2</kbd> рывок</div>
       <div style="margin-top:4px">♛ <b>Короли</b>: ↓ ↓ удар, <kbd>Z</kbd> / <kbd>M</kbd> или 🎮 <kbd>□</kbd> — <b>портал с помощниками</b>. Архангел против Демона — отдельный бой сбоку с добиваниями.</div>
       <div class="mut" style="margin-top:2px">Свежий боец бегает быстрее, на бегу устаёт и к нулю еле плетётся; стоя — отдыхает. Бонус «Второе дыхание» снимает усталость сразу.</div>
@@ -680,7 +680,7 @@ function showRules(){
     <li><b>Уровни</b> (только у пешек — Ратников, Лучниц, Пепельников и Гоблинов): пешка-победитель получает новый уровень (до ★${MAXLVL}): +15% здоровья, +12% урона, +5% скорости и −6% к перезарядке умений за каждый. Уровень виден звёздочкой на фигуре.</li>
     <li><b>Режимы</b>: «Новая игра» → <b>на двоих</b> за одним экраном или <b>с компьютером</b>: выберите сторону и сложность (лёгкий, средний, сложный). С компьютером поединок показывается на весь экран, управлять можно любыми клавишами (WASD или стрелки), геймпадом или касаниями.</li>
     <li><b>По сети</b>: «Новая игра» → «По сети». Один игрок создаёт комнату и называет 5-буквенный код, второй на своём компьютере или планшете жмёт «Войти по коду». Каждый ходит своей стороной, а в поединке весь экран — свой. Нужен интернет; вкладку создателя лучше не сворачивать — игра считается у него.</li>
-    <li><b>Приёмы в бою</b>: ← → удар — удар ×2; ← → ← → удар — ×4; ← ↑ → ↓ удар — ×5; ← → умение — блок на 1,5 с. Все приёмы тратят выносливость. Направления — клавиши движения, стик или крестовина геймпада; набрать за 2 с. То же — одной кнопкой: у Зари <kbd>E</kbd> ×2, <kbd>R</kbd> ×4, <kbd>T</kbd> ×5, <kbd>Q</kbd> блок, <kbd>Shift</kbd> — <b>рывок</b> (быстрый бросок в сторону движения, 20 выносливости); у Пепла <kbd>U</kbd>, <kbd>I</kbd>, <kbd>O</kbd>, <kbd>J</kbd>, правый <kbd>Shift</kbd> (или Num4, Num5, Num6, Num0, Num3). На геймпаде: <kbd>R1</kbd> ×2, <kbd>R2</kbd> ×4, <kbd>△</kbd> (Y) ×5, <kbd>L1</kbd> блок, <kbd>L2</kbd> рывок.</li>
+    <li><b>Приёмы в бою</b>: быстро наберите комбинацию направлений — приём <b>заряжается</b> на 10 с: над бойцом загорается ⚡ или 🛡, в табло — «заряжен». Можно бегать, уворачиваться и ударить в нужный момент. ← → — удар ×2; ← → ← → — ×4; ← ↑ → ↓ — ×5 (срабатывают по кнопке удара, сильный заряд заменяет слабый); ↓ ↑ — блок на 1,5 с (срабатывает по кнопке умения). Выносливость тратится в момент удара. Направления — клавиши движения, стик или крестовина геймпада. То же — одной кнопкой: у Зари <kbd>E</kbd> ×2, <kbd>R</kbd> ×4, <kbd>T</kbd> ×5, <kbd>Q</kbd> блок, <kbd>Shift</kbd> — <b>рывок</b> (быстрый бросок в сторону движения, 20 выносливости); у Пепла <kbd>U</kbd>, <kbd>I</kbd>, <kbd>O</kbd>, <kbd>J</kbd>, правый <kbd>Shift</kbd> (или Num4, Num5, Num6, Num0, Num3). На геймпаде: <kbd>R1</kbd> ×2, <kbd>R2</kbd> ×4, <kbd>△</kbd> (Y) ×5, <kbd>L1</kbd> блок, <kbd>L2</kbd> рывок.</li>
     <li><b>♛ Портал короля</b> (только Архангел и Демон в бою с обычной фигурой): ↓ ↓ удар, или <kbd>Z</kbd> (Заря) / <kbd>M</kbd> (Пепел), или <kbd>□</kbd> (X) на геймпаде — открывает портал, из него выходят три помощника (ангелы или бесы) и 12 с бьют врага. 30 выносливости, перезарядка 25 с.</li>
     <li><b>♛ Поединок королей</b>: когда Архангел сходится с Демоном, бой идёт в отдельном режиме — вид сбоку. ← → ходить, ↑ прыжок, ↓ — блок; удар и пинок. Приёмы набираются стрелками «к врагу» (→) и «от врага» (←) и кнопкой — например ← → удар бросает шар света или пламени. Когда здоровье одного кончается, он шатается 6 с: «Добей его!» — наберите добивание (их десять, список — в окне перед боем). Иначе он просто падает.</li>
     <li><b>Яд</b> копится: каждое отравление добавляет заряд (до 8), и чем их больше, тем быстрее уходит здоровье. Пока боец отравлен, портал и родник его не лечат. Травят гоблины, пауки, Гоблин-лучник, некоторые бойцы Пепла.</li>
@@ -1276,6 +1276,7 @@ function updFighter(f,dt){
   if(f.T.regen&&f.hp<f.max)f.hp=Math.min(f.max,f.hp+f.T.regen*dt);
   for(const k of ['blockT','stealthT','healT','rootT','flash','breathT','hasteT','shieldT','powerT','poisonT','slowT'])f[k]=Math.max(0,f[k]-dt);
   if(f.poisonT<=0&&f.pois){f.pois=0;f.poisonDps=0}
+  for(const k of ['chA','chB'])if(f[k]&&(f[k].t-=dt)<=0){f[k]=null;floatTxt(f.x,f.y-f.r-30,'заряд пропал','#aaa')}
   if(f.dive){const d=f.dive;d.t+=dt;const k=Math.min(1,d.t/d.dur);f.x=d.x0+(d.x1-d.x0)*k;f.y=d.y0+(d.y1-d.y0)*k;f.face=Math.atan2(d.y1-d.y0,d.x1-d.x0)||f.face;
     if(Math.random()<.7)D.parts.push(d.ab.jump?{x:f.x,y:f.y,vx:rnd(-30,30),vy:rnd(-30,30),life:.4,max:.4,col:'#b8a27a',r:5}:{x:f.x,y:f.y,vx:rnd(-30,30),vy:rnd(-30,30),life:.4,max:.4,col:'#ff9a2a',r:4,fire:1});
     if(k>=1){f.dive=null;const ab=d.ab,e=enemyOf(f);boom(f.x,f.y,ab.radius*2.2);D.shake=10;snd(90,.4,'sawtooth',.08,.4);
@@ -1327,9 +1328,14 @@ function updFighter(f,dt){
     if(vd&&vd!==f.prevV)f.seq.push([vd,D.t]);f.prevV=vd;
     while(f.seq.length&&D.t-f.seq[0][1]>2)f.seq.shift();if(f.seq.length>6)f.seq.splice(0,f.seq.length-6);
     const aE=inp.a&&!f.prevA,bE=inp.b&&!f.prevB;f.prevA=inp.a;f.prevB=inp.b;let done=false;
-    if((aE||bE)&&!f.ai){const i=aE?0:1,q=f.seq.map(x=>x[0]).join(''),c=COMBO.find(c=>q.endsWith(c.seq)&&(c.btn==null||c.btn===i));
-      if(c&&doSuper(f,c,i)){done=true;f.lock=i}
-      f.seq=[]}
+    if(!f.ai)chargeCheck(f);
+    // заряженный приём срабатывает по нажатию: удар — суперудар, умение — блок
+    if(aE&&f.chA&&!f.ai){const c=f.chA;if(f.cd[0]>0){}else if(f.st<c.cost)floatTxt(f.x,f.y-f.r-30,'нет сил','#9cf');
+      else{f.chA=null;f.seq=[];doSuper(f,c,0);done=true;f.lock=0}}
+    if(bE&&f.chB&&!f.ai&&!done){const c=f.chB;if(f.st<c.cost)floatTxt(f.x,f.y-f.r-30,'нет сил','#9cf');
+      else{f.chB=null;f.seq=[];doSuper(f,c,1);done=true;f.lock=1}}
+    // портал короля: ↓ ↓ удар — как раньше, сразу
+    if(aE&&!done&&!f.ai&&f.T.leader){const q=f.seq.map(x=>x[0]).join('');if(q.endsWith('dd')&&doSuper(f,COMBO[4],0)){done=true;f.lock=0;f.seq=[]}}
     // отдельные кнопки приёмов: геймпад R1/R2/△/L1/L2, клавиши E/R/T/Q/Shift (Заря) и U/I/O/J/правый Shift (Пепел)
     if(!f.ai){f.prevS=f.prevS||{};for(const k of SK){const e=inp[k]&&!f.prevS[k];f.prevS[k]=!!inp[k];if(e&&!done)done=doSuper(f,SUPER[k],0,inp)}}
     if(f.ai&&f.T.leader&&!done&&!(f.sumCd>0)&&f.st>=30&&dist(f,enemyOf(f))<700&&Math.random()<dt*.5)done=doSuper(f,SUPER.sum,0);
@@ -1440,6 +1446,22 @@ function aiThink(f,e,A){
   A.a=want0;A.b=use1;A.dir=dir;
 }
 const SK=['x2','x4','x5','blk','dash','sum'];
+// заряд приёмов: набрал комбинацию быстро (за span секунд) — приём «заряжен» CHARGE_T секунд и горит над бойцом и в табло
+const CHARGE_T=10,CHARGES=[{seq:'lurd',c:0,span:1.8,rank:3},{seq:'lrlr',c:1,span:1.5,rank:2},{seq:'lr',c:3,span:.6,rank:1},{seq:'du',c:2,span:.6,blk:1}];
+function chargeCheck(f){
+  if(!f.seq.length)return;const q=f.seq.map(x=>x[0]).join('');
+  for(const ch of CHARGES){
+    const n=ch.seq.length;if(!q.endsWith(ch.seq)||D.t-f.seq[f.seq.length-n][1]>ch.span)continue;
+    const last=f.seq[f.seq.length-1][1];if(f.chLast===last+ch.seq)return;f.chLast=last+ch.seq; // одну и ту же комбинацию не засчитываем дважды
+    const c=COMBO[ch.c];
+    if(ch.blk){if(f.chB){f.chB.t=CHARGE_T;return}}
+    else if(f.chA&&f.chA.rank>=ch.rank){if(f.chA.rank===ch.rank)f.chA.t=CHARGE_T;return}
+    if(f.st<c.cost){floatTxt(f.x,f.y-f.r-30,'нет сил','#9cf');return}
+    const o={n:c.n,mul:c.mul||0,block:c.block||0,cost:c.cost,rank:ch.rank||0,t:CHARGE_T};
+    if(ch.blk)f.chB=o;else f.chA=o;
+    floatTxt(f.x,f.y-f.r-30,(ch.blk?'🛡 блок':'⚡ '+c.n.replace('!',''))+' заряжен','#ffe04a');snd(ch.blk?700:300+ch.rank*120,.12,'triangle',.05,1.6);
+    return}
+}
 function doSuper(f,c,i,inp){
   if(c.summon){if(!f.T.leader)return false;if(f.sumCd>0){floatTxt(f.x,f.y-f.r-30,'портал через '+Math.ceil(f.sumCd)+' с','#9cf');return false}
     if(f.st<c.cost){floatTxt(f.x,f.y-f.r-30,'нет сил','#9cf');return false}f.st-=c.cost;floatTxt(f.x,f.y-f.r-30,c.n,'#ffe04a');summon(f);return true}
@@ -1703,6 +1725,12 @@ function drawFighter(f,isOwn){
     ctx.font=`${Math.round(f.r*1.35)}px ${EMOJI}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(f.T.g,f.x,y+1)}
   if(f.flash>0){ctx.globalAlpha=f.flash/.12*.6;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(f.x,y,f.r*1.1,0,7);ctx.fill()}
   ctx.restore();
+  if(!f.dead&&(f.chA||f.chB)&&(f.stealthT<=0||isOwn)){const pu=.6+.4*Math.sin(performance.now()/120);
+    if(f.chA){ctx.save();ctx.globalAlpha=pu;ctx.strokeStyle='#ffe04a';ctx.lineWidth=4;ctx.setLineDash([10,6]);ctx.lineDashOffset=-performance.now()/30;ctx.beginPath();ctx.arc(f.x,y,f.r+12,0,7);ctx.stroke();ctx.restore()}
+    if(f.chB){ctx.save();ctx.globalAlpha=pu;ctx.strokeStyle='#9df';ctx.lineWidth=3;ctx.beginPath();ctx.arc(f.x,y,f.r+18,0,7);ctx.stroke();ctx.restore()}
+    const lab=[f.chA?'⚡'+f.chA.n.replace('!',''):'',f.chB?'🛡':''].filter(Boolean).join(' ');
+    ctx.font='bold 18px Georgia,serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=4;ctx.strokeStyle='#000';
+    ctx.strokeText(lab,f.x,f.y-f.r*2-24);ctx.fillStyle=f.chA?'#ffe04a':'#9df';ctx.fillText(lab,f.x,f.y-f.r*2-24)}
   if(!f.dead&&(f.stealthT<=0||isOwn)){const w=f.r*2.4;ctx.fillStyle='#000a';ctx.fillRect(f.x-w/2,f.y-f.r*2-10,w,5);
     ctx.fillStyle=f.hp/f.max>.3?'#6f6':'#f55';ctx.fillRect(f.x-w/2,f.y-f.r*2-10,w*f.hp/f.max,5)}
 }
@@ -1715,6 +1743,11 @@ function drawHud(f){
   if(!sprite(f.shade?darkImg('u_'+f.skin):IMG['u_'+f.skin],ix+24,33,54,0)){ctx.font=`26px ${EMOJI}`;ctx.fillText(f.T.g,ix+10,30)}
   ctx.textBaseline='middle';ctx.textAlign='left';ctx.font='bold 17px Georgia,serif';ctx.fillStyle=f.col;
   ctx.fillText(`${f.T.name}${f.lvl>1?' ★'+f.lvl:''}  ${Math.ceil(f.hp)}/${f.max}`,ix+56,15);
+  {let bx2=ix+56+ctx.measureText(`${f.T.name}${f.lvl>1?' ★'+f.lvl:''}  ${Math.ceil(f.hp)}/${f.max}`).width+12;const pu=.75+.25*Math.sin(performance.now()/120);
+    for(const [c,col,txt] of [[f.chA,'#ffe04a',f.chA&&'⚡ '+f.chA.n.replace('!','')+' заряжен'],[f.chB,'#99ddff','🛡 блок заряжен']]){if(!c)continue;
+      ctx.font='bold 13px Georgia,serif';const tw=ctx.measureText(txt).width+14;ctx.globalAlpha=pu;ctx.fillStyle=col+'33';rr(bx2,5,tw,20,10);ctx.fill();ctx.strokeStyle=col;ctx.lineWidth=1.5;rr(bx2,5,tw,20,10);ctx.stroke();
+      ctx.fillStyle=col;ctx.fillText(txt,bx2+7,15.5);ctx.globalAlpha=1;
+      ctx.fillStyle=col;ctx.fillRect(bx2+7,23,(tw-14)*c.t/CHARGE_T,2);bx2+=tw+6}}
   const bx=ix+56,by=26,bw=HALF-56-24-48;ctx.fillStyle='#000';rr(bx,by,bw,10,5);ctx.fill();
   const p=f.hp/f.max;ctx.fillStyle=p>.6?'#5d5':p>.3?'#ec4':'#e44';rr(bx,by,bw*p,10,5);ctx.fill();
   ctx.fillStyle='#000';rr(bx,by+12,bw,4,2);ctx.fill();ctx.fillStyle=f.st>0?(f.st>30?'#6cf':'#9ab'):'#556';rr(bx,by+12,bw*Math.max(.01,f.st/100),4,2);ctx.fill();
